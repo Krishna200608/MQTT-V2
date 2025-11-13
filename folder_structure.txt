@@ -5,10 +5,20 @@ MQTT V2
 │   ├── passwords.txt
 │   ├── run_all_attacks.bat
 │   ├── run_attacks_loop.bat
+│   ├── run_full_attacks.bat
 │   ├── scan_A.bat
 │   ├── scan_sU.bat
 │   ├── ssh_bruteforce_nmap.bat
 │   └── users.txt
+├── clients
+│   ├── pi_publisher.py
+│   ├── pi_subscriber.py
+│   ├── README.md
+│   ├── run_publisher.bat
+│   └── run_subscriber.bat
+├── commands
+│   ├── start_broker_env.bat
+│   └── stop_broker_env.bat
 ├── data
 │   ├── biflow_features
 │   │   ├── biflow_mqtt_bruteforce.csv
@@ -42,11 +52,13 @@ MQTT V2
 │       ├── uniflow_scan_A.csv
 │       ├── uniflow_scan_sU.csv
 │       └── uniflow_sparta.csv
+├── folder_structure.txt
 ├── helper
 │   ├── addresse_commands.md
 │   ├── biflow.md
 │   └── uniflow.md
 ├── live_ids.py
+├── live_ids_dashboard.py
 ├── model_outputs
 │   ├── biflow
 │   │   └── random_forest
@@ -90,9 +102,8 @@ MQTT V2
 │           │   ├── feature_importance_rf.png
 │           │   └── model_rf.joblib
 │           └── train_metadata.json
-├── pi_publisher.py
-├── pi_subscriber.py
 ├── print_structure.py
+├── README.md
 ├── requirements.txt
 └── scripts
     ├── evaluate_model.py

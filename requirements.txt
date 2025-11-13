@@ -10,3 +10,7 @@ setuptools<81
 psutil
 matplotlib
 seaborn
+rich>=13.7.1
+colorama>=0.4.6
+pywin32>=306
+packaging>=24.0

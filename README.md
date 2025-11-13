@@ -101,33 +101,118 @@ plotly
 
 ```
 MQTT V2
-│
-├── commands/                # Start/Stop scripts for broker environment
-│   ├── start_broker_env.bat
-│   ├── stop_broker_env.bat
-│   └── run_full_demo.bat
-│
-├── attacks/                 # Attacker laptop scripts
+├── attack_synthetic_generator.py
+├── attacks
+│   ├── mqtt_bruteforce.py
+│   ├── passwords.txt
+│   ├── run_all_attacks.bat
+│   ├── run_attacks_loop.bat
+│   ├── run_full_attacks.bat
 │   ├── scan_A.bat
 │   ├── scan_sU.bat
 │   ├── ssh_bruteforce_nmap.bat
-│   ├── mqtt_bruteforce.py
-│   └── run_full_attacks.bat
-│
-├── clients/                 # IoT client laptops
+│   └── users.txt
+├── clients
 │   ├── pi_publisher.py
 │   ├── pi_subscriber.py
+│   ├── README.md
 │   ├── run_publisher.bat
 │   └── run_subscriber.bat
-│
-├── live_ids.py              # Real-time IDS engine
-├── live_ids_dashboard.py    # Console dashboard for alerts
-│
-├── model_outputs/           # Trained ML models + metadata
-├── data/                    # Dataset CSVs + PCAPs
-├── scripts/                 # Training/evaluation utilities
-│
-└── requirements.txt         # Dependencies
+├── commands
+│   ├── start_broker_env.bat
+│   └── stop_broker_env.bat
+├── data
+│   ├── biflow_features
+│   │   ├── biflow_mqtt_bruteforce.csv
+│   │   ├── biflow_normal.csv
+│   │   ├── biflow_scan_A.csv
+│   │   ├── biflow_scan_sU.csv
+│   │   └── biflow_sparta.csv
+│   ├── combined
+│   │   ├── biflow_test.csv
+│   │   ├── biflow_train.csv
+│   │   ├── packet_test.csv
+│   │   ├── packet_train.csv
+│   │   ├── split_metadata.json
+│   │   ├── uniflow_test.csv
+│   │   └── uniflow_train.csv
+│   ├── packet_features
+│   │   ├── mqtt_bruteforce.csv
+│   │   ├── normal.csv
+│   │   ├── scan_A.csv
+│   │   ├── scan_sU.csv
+│   │   └── sparta.csv
+│   ├── pcap_files
+│   │   ├── mqtt_bruteforce.pcap
+│   │   ├── normal.pcap
+│   │   ├── scan_A.pcap
+│   │   ├── scan_sU.pcap
+│   │   └── sparta.pcap
+│   └── uniflow_features
+│       ├── uniflow_mqtt_bruteforce.csv
+│       ├── uniflow_normal.csv
+│       ├── uniflow_scan_A.csv
+│       ├── uniflow_scan_sU.csv
+│       └── uniflow_sparta.csv
+├── folder_structure.txt
+├── helper
+│   ├── addresse_commands.md
+│   ├── biflow.md
+│   └── uniflow.md
+├── live_ids.py
+├── live_ids_dashboard.py
+├── model_outputs
+│   ├── biflow
+│   │   └── random_forest
+│   │       ├── evaluation_results
+│   │       │   ├── confusion_matrix.png
+│   │       │   ├── eval_classification_report.csv
+│   │       │   ├── eval_classification_report.txt
+│   │       │   └── eval_summary.json
+│   │       ├── model_comparison.csv
+│   │       ├── model_comparison.png
+│   │       ├── random_forest
+│   │       │   ├── feature_importance_rf.csv
+│   │       │   ├── feature_importance_rf.png
+│   │       │   └── model_rf.joblib
+│   │       └── train_metadata.json
+│   ├── packet
+│   │   └── decision_tree
+│   │       ├── evaluation_results
+│   │       │   ├── confusion_matrix.png
+│   │       │   ├── eval_classification_report.csv
+│   │       │   ├── eval_classification_report.txt
+│   │       │   └── eval_summary.json
+│   │       ├── model_comparison.csv
+│   │       ├── model_comparison.png
+│   │       ├── model_dt
+│   │       │   ├── feature_importance_dt.csv
+│   │       │   ├── feature_importance_dt.png
+│   │       │   └── model_dt.joblib
+│   │       └── train_metadata.json
+│   └── uniflow
+│       └── random_forest
+│           ├── evaluation_results
+│           │   ├── confusion_matrix.png
+│           │   ├── eval_classification_report.csv
+│           │   ├── eval_classification_report.txt
+│           │   └── eval_summary.json
+│           ├── model_comparison.csv
+│           ├── model_comparison.png
+│           ├── random_forest
+│           │   ├── feature_importance_rf.csv
+│           │   ├── feature_importance_rf.png
+│           │   └── model_rf.joblib
+│           └── train_metadata.json
+├── print_structure.py
+├── README.md
+├── requirements.txt
+└── scripts
+    ├── evaluate_model.py
+    ├── pcap_to_features.py
+    ├── prepare_combined_csv.py
+    ├── run_all.py
+    └── train_model.py
 ```
 
 ---

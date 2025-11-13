@@ -10,6 +10,6 @@ set PY=python
 echo Using Client Folder: %BASE%
 echo Starting publisher...
 
-%PY% "%BASE%pi_publisher.py" --broker 192.168.0.100 --rate 5
+%PY% "%BASE%pi_publisher.py" --broker 192.168.0.102 --rate 5
 
 pause

@@ -6,7 +6,7 @@ echo ============================================================
 echo.
 
 REM === CONFIG ===
-set BROKER_IP=192.168.0.100
+set BROKER_IP=192.168.0.102
 set PY=python
 
 echo Broker Target: %BROKER_IP%

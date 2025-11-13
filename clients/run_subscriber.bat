@@ -9,6 +9,6 @@ set PY=python
 
 echo Subscribing to sensors/# on broker 192.168.0.100...
 
-%PY% "%BASE%pi_subscriber.py" --broker 192.168.0.100 --topic sensors/# --out iot_messages.csv
+%PY% "%BASE%pi_subscriber.py" --broker 192.168.0.102 --topic sensors/# --out iot_messages.csv
 
 pause

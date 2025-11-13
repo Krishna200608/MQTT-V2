@@ -11,15 +11,12 @@ echo %ESC%[96m       MQTT IDS LAB - START BROKER + LIVE IDS + CAPTURE      %ESC%
 echo %ESC%[95m============================================================%ESC%[0m
 echo.
 
-REM --- BASE PROJECT DIRECTORY (parent of /commands) ---
-pushd "%~dp0.." >nul
-pushd ".." >nul
-set BASE=%CD%
-popd >nul
-popd >nul
+REM --- FIXED BASE DIRECTORY ---
+set "BASE=%~dp0.."
+for %%A in ("%BASE%") do set "BASE=%%~fA"
 
 REM --- PATHS ---
-set PCAP_DIR=%BASE%\data\pcap_files
+set PCAP_DIR=%BASE%\pcap_files
 set MODEL=%BASE%\model_outputs\biflow\random_forest\random_forest\model_rf.joblib
 set META=%BASE%\model_outputs\biflow\random_forest\train_metadata.json
 set DASH=%BASE%\live_ids_dashboard.py

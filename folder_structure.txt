@@ -57,6 +57,7 @@ MQTT V2
 │   ├── addresse_commands.md
 │   ├── biflow.md
 │   └── uniflow.md
+├── ids_alerts.log
 ├── live_ids.py
 ├── live_ids_dashboard.py
 ├── model_outputs
@@ -102,6 +103,12 @@ MQTT V2
 │           │   ├── feature_importance_rf.png
 │           │   └── model_rf.joblib
 │           └── train_metadata.json
+├── pcap_files
+│   ├── capture_00001_20251113230421.pcap
+│   ├── capture_00002_20251113230426.pcap
+│   ├── capture_00003_20251113230431.pcap
+│   ├── capture_00004_20251113230437.pcap
+│   └── capture_00005_20251113230442.pcap
 ├── print_structure.py
 ├── README.md
 ├── requirements.txt

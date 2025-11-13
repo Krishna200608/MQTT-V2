@@ -1,0 +1,1 @@
+nmap --script ssh-brute --script-args userdb=users.txt,passdb=passwords.txt 192.168.0.100

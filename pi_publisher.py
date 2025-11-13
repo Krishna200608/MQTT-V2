@@ -3,6 +3,7 @@
 Lightweight Raspberry Pi publisher for MQTT message simulation.
 Usage:
 python pi_publisher.py --broker 192.168.1.100 --port 1883 --topic sensors/1 --qos 0 --rate 5 --messages-file patterns.csv
+python pi_publisher.py --broker 192.168.0.100 --port 1883 --topic sensors/1 --qos 0 --rate 5 --messages-file patterns.csv
 """
 import argparse, csv, time
 import paho.mqtt.client as mqtt

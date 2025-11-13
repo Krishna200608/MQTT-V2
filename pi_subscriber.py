@@ -2,7 +2,7 @@
 """
 Minimal subscriber to record messages to CSV (for dataset collection).
 Usage:
-python pi_subscriber.py --broker 192.168.1.100 --topic sensors/# --out messages.csv
+python pi_subscriber.py --broker 192.168.0.100 --topic sensors/# --out messages.csv
 """
 import argparse, csv, time
 import paho.mqtt.client as mqtt

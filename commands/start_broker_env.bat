@@ -12,16 +12,19 @@ echo %ESC%[95m============================================================%ESC%[
 echo.
 
 REM --- BASE PROJECT DIRECTORY (parent of /commands) ---
-set BASE=%~dp0..
-set BASE=%BASE:~0,-1%
+pushd "%~dp0.." >nul
+pushd ".." >nul
+set BASE=%CD%
+popd >nul
+popd >nul
 
 REM --- PATHS ---
-set PCAP_DIR=%BASE%\pcap_files
+set PCAP_DIR=%BASE%\data\pcap_files
 set MODEL=%BASE%\model_outputs\biflow\random_forest\random_forest\model_rf.joblib
 set META=%BASE%\model_outputs\biflow\random_forest\train_metadata.json
 set DASH=%BASE%\live_ids_dashboard.py
-set MOSQ_CONF=C:\mosquitto_data\mosquitto.conf
 set PY=python
+set MOSQ_CONF=C:\mosquitto_data\mosquitto.conf
 
 echo %ESC%[93mProject Base:%ESC%[0m %BASE%
 echo %ESC%[93mPCAP DIR:%ESC%[0m    %PCAP_DIR%
@@ -32,7 +35,7 @@ echo.
 echo %ESC%[94m------------------------------------------------------------%ESC%[0m
 echo %ESC%[92m[1] Starting Mosquitto Broker...%ESC%[0m
 echo %ESC%[94m------------------------------------------------------------%ESC%[0m
-start cmd /k "mosquitto -c %MOSQ_CONF% -v"
+start cmd /k "mosquitto -c \"%MOSQ_CONF%\" -v"
 timeout /t 3 >nul
 
 if not exist "%PCAP_DIR%" (

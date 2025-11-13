@@ -1,0 +1,141 @@
+################################################################################
+# 🧠 MQTT-IoT-IDS2020 Project — .gitignore
+# Keeps your repo clean by excluding large generated files and environment junk.
+################################################################################
+
+# ------------------------------------------------------------------------------
+# 🧩 Python cache and environment
+# ------------------------------------------------------------------------------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+*.pkl
+*.egg-info/
+.env
+.venv/
+venv/
+ENV/
+env/
+*.env
+
+# ------------------------------------------------------------------------------
+# 🧰 Virtual environment and dependency cache
+# ------------------------------------------------------------------------------
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+sitecustomize.py
+.ipynb_checkpoints/
+.DS_Store
+Thumbs.db
+
+# ------------------------------------------------------------------------------
+# 📦 Package manager and IDE configs
+# ------------------------------------------------------------------------------
+.vscode/
+.idea/
+*.code-workspace
+*.sublime-workspace
+*.sublime-project
+*.spyproject/
+.history/
+*.bak
+*.swp
+
+# ------------------------------------------------------------------------------
+# 📊 Data files (large and generated)
+# ------------------------------------------------------------------------------
+data/combined/
+data/packet_features/*.csv
+data/uniflow_features/*.csv
+data/biflow_features/*.csv
+data/**/*.tmp
+data/**/*.bak
+*.csv
+*.xlsx
+
+# ------------------------------------------------------------------------------
+# 🧪 Model outputs and experiment results
+# ------------------------------------------------------------------------------
+model_outputs/
+*.joblib
+*.pkl
+*.sav
+*.h5
+*.onnx
+*.npy
+*.npz
+*.json
+*.log
+*.ckpt
+*.pth
+*.pt
+*.weights
+
+# ------------------------------------------------------------------------------
+# 🧫 PCAP captures and analysis outputs
+# ------------------------------------------------------------------------------
+captures/
+*.pcap
+*.pcapng
+*.cap
+*.tmp
+
+# ------------------------------------------------------------------------------
+# 🧠 Jupyter / Notebook related
+# ------------------------------------------------------------------------------
+*.ipynb_checkpoints/
+notebooks/.ipynb_checkpoints/
+.notebook_cache/
+*.nbconvert.ipynb
+
+# ------------------------------------------------------------------------------
+# 🧹 Logs, cache, and temp files
+# ------------------------------------------------------------------------------
+logs/
+*.log
+*.out
+*.err
+nohup.out
+*.tmp
+tmp/
+*.bak
+*.old
+*.orig
+*.gz
+*.zip
+
+# ------------------------------------------------------------------------------
+# 🧬 OS and Editor Specific
+# ------------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+ehthumbs.db
+Icon?
+desktop.ini
+Thumbs.db
+~$*
+*.lnk
+
+# ------------------------------------------------------------------------------
+# 🧱 Build and dist artifacts
+# ------------------------------------------------------------------------------
+build/
+dist/
+*.egg
+*.egg-info/
+.eggs/
+MANIFEST
+*.manifest
+*.spec
+
+# ------------------------------------------------------------------------------
+# ✅ Files you SHOULD commit (documentation, configs)
+# ------------------------------------------------------------------------------
+!requirements.txt
+!README.md
+!scripts/
+!scripts/*.py
+!.gitignore

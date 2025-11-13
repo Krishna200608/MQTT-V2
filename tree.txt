@@ -1,0 +1,93 @@
+📂 Project structure for: D:\Research\Code\MQTT V2
+MQTT V2
+├── attack_synthetic_generator.py
+├── data
+│   ├── biflow_features
+│   │   ├── biflow_mqtt_bruteforce.csv
+│   │   ├── biflow_normal.csv
+│   │   ├── biflow_scan_A.csv
+│   │   ├── biflow_scan_sU.csv
+│   │   └── biflow_sparta.csv
+│   ├── combined
+│   │   ├── biflow_test.csv
+│   │   ├── biflow_train.csv
+│   │   ├── packet_test.csv
+│   │   ├── packet_train.csv
+│   │   ├── split_metadata.json
+│   │   ├── uniflow_test.csv
+│   │   └── uniflow_train.csv
+│   ├── packet_features
+│   │   ├── mqtt_bruteforce.csv
+│   │   ├── normal.csv
+│   │   ├── scan_A.csv
+│   │   ├── scan_sU.csv
+│   │   └── sparta.csv
+│   ├── pcap_files
+│   │   ├── mqtt_bruteforce.pcap
+│   │   ├── normal.pcap
+│   │   ├── scan_A.pcap
+│   │   ├── scan_sU.pcap
+│   │   └── sparta.pcap
+│   └── uniflow_features
+│       ├── uniflow_mqtt_bruteforce.csv
+│       ├── uniflow_normal.csv
+│       ├── uniflow_scan_A.csv
+│       ├── uniflow_scan_sU.csv
+│       └── uniflow_sparta.csv
+├── helper
+│   ├── biflow.md
+│   └── uniflow.md
+├── model_outputs
+│   ├── biflow
+│   │   └── random_forest
+│   │       ├── evaluation_results
+│   │       │   ├── confusion_matrix.png
+│   │       │   ├── eval_classification_report.csv
+│   │       │   ├── eval_classification_report.txt
+│   │       │   └── eval_summary.json
+│   │       ├── model_comparison.csv
+│   │       ├── model_comparison.png
+│   │       ├── random_forest
+│   │       │   ├── feature_importance_rf.csv
+│   │       │   ├── feature_importance_rf.png
+│   │       │   └── model_rf.joblib
+│   │       └── train_metadata.json
+│   ├── packet
+│   │   └── decision_tree
+│   │       ├── evaluation_results
+│   │       │   ├── confusion_matrix.png
+│   │       │   ├── eval_classification_report.csv
+│   │       │   ├── eval_classification_report.txt
+│   │       │   ├── eval_summary.json
+│   │       │   └── evaluation_results
+│   │       ├── model_comparison.csv
+│   │       ├── model_comparison.png
+│   │       ├── model_dt
+│   │       │   ├── feature_importance_dt.csv
+│   │       │   ├── feature_importance_dt.png
+│   │       │   └── model_dt.joblib
+│   │       └── train_metadata.json
+│   └── uniflow
+│       └── random_forest
+│           ├── evaluation_results
+│           │   ├── confusion_matrix.png
+│           │   ├── eval_classification_report.csv
+│           │   ├── eval_classification_report.txt
+│           │   └── eval_summary.json
+│           ├── model_comparison.csv
+│           ├── model_comparison.png
+│           ├── random_forest
+│           │   ├── feature_importance_rf.csv
+│           │   ├── feature_importance_rf.png
+│           │   └── model_rf.joblib
+│           └── train_metadata.json
+├── pi_publisher.py
+├── pi_subscriber.py
+├── print_structure.py
+├── requirements.txt
+└── scripts
+    ├── evaluate_model.py
+    ├── pcap_to_features.py
+    ├── prepare_combined_csv.py
+    ├── run_all.py
+    └── train_model.py

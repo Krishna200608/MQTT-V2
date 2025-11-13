@@ -1,6 +1,14 @@
-📂 Project structure for: D:\Research\Code\MQTT V2
 MQTT V2
 ├── attack_synthetic_generator.py
+├── attacks
+│   ├── mqtt_bruteforce.py
+│   ├── passwords.txt
+│   ├── run_all_attacks.bat
+│   ├── run_attacks_loop.bat
+│   ├── scan_A.bat
+│   ├── scan_sU.bat
+│   ├── ssh_bruteforce_nmap.bat
+│   └── users.txt
 ├── data
 │   ├── biflow_features
 │   │   ├── biflow_mqtt_bruteforce.csv
@@ -35,8 +43,10 @@ MQTT V2
 │       ├── uniflow_scan_sU.csv
 │       └── uniflow_sparta.csv
 ├── helper
+│   ├── addresse_commands.md
 │   ├── biflow.md
 │   └── uniflow.md
+├── live_ids.py
 ├── model_outputs
 │   ├── biflow
 │   │   └── random_forest
@@ -58,8 +68,7 @@ MQTT V2
 │   │       │   ├── confusion_matrix.png
 │   │       │   ├── eval_classification_report.csv
 │   │       │   ├── eval_classification_report.txt
-│   │       │   ├── eval_summary.json
-│   │       │   └── evaluation_results
+│   │       │   └── eval_summary.json
 │   │       ├── model_comparison.csv
 │   │       ├── model_comparison.png
 │   │       ├── model_dt

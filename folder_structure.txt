@@ -65,18 +65,13 @@ MQTT V2
 ├── model_outputs
 │   ├── biflow
 │   │   └── random_forest
-│   │       ├── 1.py
 │   │       ├── evaluation_results
 │   │       │   ├── confusion_matrix.png
 │   │       │   ├── eval_classification_report.csv
 │   │       │   ├── eval_classification_report.txt
 │   │       │   └── eval_summary.json
-│   │       ├── model_comparison.csv
-│   │       ├── model_comparison.png
-│   │       ├── random_forest
-│   │       │   ├── feature_importance_rf.csv
-│   │       │   ├── feature_importance_rf.png
-│   │       │   └── model_rf.joblib
+│   │       ├── feature_names.json
+│   │       ├── model_rf.joblib
 │   │       └── train_metadata.json
 │   ├── packet
 │   │   └── decision_tree
@@ -85,12 +80,8 @@ MQTT V2
 │   │       │   ├── eval_classification_report.csv
 │   │       │   ├── eval_classification_report.txt
 │   │       │   └── eval_summary.json
-│   │       ├── model_comparison.csv
-│   │       ├── model_comparison.png
-│   │       ├── model_dt
-│   │       │   ├── feature_importance_dt.csv
-│   │       │   ├── feature_importance_dt.png
-│   │       │   └── model_dt.joblib
+│   │       ├── feature_names.json
+│   │       ├── model_dt.joblib
 │   │       └── train_metadata.json
 │   └── uniflow
 │       └── random_forest
@@ -99,12 +90,8 @@ MQTT V2
 │           │   ├── eval_classification_report.csv
 │           │   ├── eval_classification_report.txt
 │           │   └── eval_summary.json
-│           ├── model_comparison.csv
-│           ├── model_comparison.png
-│           ├── random_forest
-│           │   ├── feature_importance_rf.csv
-│           │   ├── feature_importance_rf.png
-│           │   └── model_rf.joblib
+│           ├── feature_names.json
+│           ├── model_rf.joblib
 │           └── train_metadata.json
 ├── pcap_files
 │   ├── capture_00001_20251114003209.pcap

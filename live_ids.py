@@ -36,14 +36,26 @@ signal.signal(signal.SIGTERM, handle_signal)
 # FEATURE EXTRACTION (29 base + duration)
 # ======================================================================
 
+# ======================================================================
+# FEATURE EXTRACTION (aligned to train_metadata.json)
+# ======================================================================
+
 def extract_biflow_29(pcap_path):
+    """
+    Read pcap and extract biflow-level features matching train_metadata.json feature_names.
+    Returns:
+      feature_rows: list of dicts (feature_name -> value)
+      meta_rows: list of dicts (src,dst,sport,dport,proto) - one per feature row, same order
+    """
     try:
         packets = rdpcap(str(pcap_path))
     except Exception as e:
         print(f"[WARN] Failed to read pcap {pcap_path}: {e}")
         return [], []
 
-    flows = {}
+    # flow_map keeps canonical flows keyed by the first-seen tuple:
+    # (src, dst, sport, dport, proto) where src/sport are "forward"
+    flow_map = {}
 
     for pkt in packets:
         if not pkt.haslayer(IP):
@@ -57,116 +69,137 @@ def extract_biflow_29(pcap_path):
             proto = 6
             sport = int(pkt[TCP].sport)
             dport = int(pkt[TCP].dport)
+            flags = pkt[TCP].flags
         elif pkt.haslayer(UDP):
             proto = 17
             sport = int(pkt[UDP].sport)
             dport = int(pkt[UDP].dport)
+            flags = 0
         else:
             continue
 
         key_fwd = (ip.src, ip.dst, sport, dport, proto)
         key_bwd = (ip.dst, ip.src, dport, sport, proto)
 
-        direction = "fwd" if key_fwd not in flows else "bwd"
-        key = key_fwd if direction == "fwd" else key_bwd
-
-        if key not in flows:
-            flows[key] = {
+        # find or create canonical flow entry
+        if key_fwd in flow_map:
+            flow = flow_map[key_fwd]
+            direction = "fwd"
+        elif key_bwd in flow_map:
+            flow = flow_map[key_bwd]
+            direction = "bwd"
+        else:
+            # create new canonical flow using this packet's orientation
+            flow = {
+                "src": ip.src, "dst": ip.dst, "sport": sport, "dport": dport, "proto": proto,
                 "fwd_sizes": [], "bwd_sizes": [],
                 "fwd_times": [], "bwd_times": [],
                 "fwd_psh": 0, "bwd_psh": 0,
                 "fwd_rst": 0, "bwd_rst": 0,
                 "fwd_urg": 0, "bwd_urg": 0,
             }
+            flow_map[key_fwd] = flow
+            direction = "fwd"
 
         size = len(pkt)
         t = float(pkt.time)
 
         if direction == "fwd":
-            flows[key]["fwd_sizes"].append(size)
-            flows[key]["fwd_times"].append(t)
+            flow["fwd_sizes"].append(size)
+            flow["fwd_times"].append(t)
             if pkt.haslayer(TCP):
-                flags = pkt[TCP].flags
-                if flags & 0x08: flows[key]["fwd_psh"] += 1
-                if flags & 0x04: flows[key]["fwd_rst"] += 1
-                if flags & 0x20: flows[key]["fwd_urg"] += 1
+                if flags & 0x08: flow["fwd_psh"] += 1
+                if flags & 0x04: flow["fwd_rst"] += 1
+                if flags & 0x20: flow["fwd_urg"] += 1
         else:
-            flows[key]["bwd_sizes"].append(size)
-            flows[key]["bwd_times"].append(t)
+            flow["bwd_sizes"].append(size)
+            flow["bwd_times"].append(t)
             if pkt.haslayer(TCP):
-                flags = pkt[TCP].flags
-                if flags & 0x08: flows[key]["bwd_psh"] += 1
-                if flags & 0x04: flows[key]["bwd_rst"] += 1
-                if flags & 0x20: flows[key]["bwd_urg"] += 1
+                if flags & 0x08: flow["bwd_psh"] += 1
+                if flags & 0x04: flow["bwd_rst"] += 1
+                if flags & 0x20: flow["bwd_urg"] += 1
 
-    feature_rows, meta_rows = [], []
+    feature_rows = []
+    meta_rows = []
 
-    def safe_stats(arr):
+    def safe_stats_from_array(arr):
+        # arr: numpy array
         if arr is None or len(arr) == 0:
             return 0.0, 0.0, 0.0, 0.0
-        return float(arr.mean()), float(arr.std()), float(arr.min()), float(arr.max())
+        # convert to numpy to ensure correct methods
+        a = np.array(arr, dtype=float)
+        return float(np.mean(a)), float(np.std(a, ddof=0)), float(np.min(a)), float(np.max(a))
 
-    for (src, dst, sport, dport, proto), f in flows.items():
-        fs = np.array(f["fwd_sizes"]) if f["fwd_sizes"] else np.array([0])
-        bs = np.array(f["bwd_sizes"]) if f["bwd_sizes"] else np.array([0])
+    for canonical_key, f in flow_map.items():
+        # sizes arrays (empty arrays if none)
+        fs = np.array(f["fwd_sizes"], dtype=float) if f["fwd_sizes"] else np.array([], dtype=float)
+        bs = np.array(f["bwd_sizes"], dtype=float) if f["bwd_sizes"] else np.array([], dtype=float)
 
-        ft = np.sort(np.array(f["fwd_times"])) if len(f["fwd_times"]) else None
-        bt = np.sort(np.array(f["bwd_times"])) if len(f["bwd_times"]) else None
+        # times sorted and iats computed
+        ft = np.sort(np.array(f["fwd_times"], dtype=float)) if f["fwd_times"] else np.array([], dtype=float)
+        bt = np.sort(np.array(f["bwd_times"], dtype=float)) if f["bwd_times"] else np.array([], dtype=float)
 
-        fiats = np.diff(ft) if ft is not None and len(ft) > 1 else np.array([])
-        biats = np.diff(bt) if bt is not None and len(bt) > 1 else np.array([])
+        fiats = np.diff(ft) if ft.size > 1 else np.array([], dtype=float)
+        biats = np.diff(bt) if bt.size > 1 else np.array([], dtype=float)
 
-        f_mean_iat, f_std_iat, f_min_iat, f_max_iat = safe_stats(fiats)
-        b_mean_iat, b_std_iat, b_min_iat, b_max_iat = safe_stats(biats)
+        f_mean_iat, f_std_iat, f_min_iat, f_max_iat = safe_stats_from_array(fiats)
+        b_mean_iat, b_std_iat, b_min_iat, b_max_iat = safe_stats_from_array(biats)
 
-        f_mean_len, f_std_len, f_min_len, f_max_len = safe_stats(fs)
-        b_mean_len, b_std_len, b_min_len, b_max_len = safe_stats(bs)
+        f_mean_len, f_std_len, f_min_len, f_max_len = safe_stats_from_array(fs)
+        b_mean_len, b_std_len, b_min_len, b_max_len = safe_stats_from_array(bs)
 
-        # NEW: Flow duration feature (boosts accuracy)
-        t_first = min(f["fwd_times"] + f["bwd_times"]) if (f["fwd_times"] or f["bwd_times"]) else 0
-        t_last  = max(f["fwd_times"] + f["bwd_times"]) if (f["fwd_times"] or f["bwd_times"]) else 0
-        duration = float(t_last - t_first)
+        f_num_pkts = int(fs.size)
+        b_num_pkts = int(bs.size)
+
+        f_num_bytes = int(fs.sum()) if fs.size > 0 else 0
+        b_num_bytes = int(bs.sum()) if bs.size > 0 else 0
 
         feat = {
-            "prt_src": sport,
-            "prt_dst": dport,
-            "proto": proto,
+            "prt_src": int(f["sport"]) if f.get("sport") is not None else int(canonical_key[2]),
+            "prt_dst": int(f["dport"]) if f.get("dport") is not None else int(canonical_key[3]),
+            "proto": int(f["proto"]) if f.get("proto") is not None else int(canonical_key[4]),
 
-            "fwd_num_pkts": len(fs),
-            "bwd_num_pkts": len(bs),
+            "fwd_num_pkts": f_num_pkts,
+            "bwd_num_pkts": b_num_pkts,
 
-            "fwd_mean_iat": f_mean_iat,
-            "bwd_mean_iat": b_mean_iat,
-            "fwd_std_iat": f_std_iat,
-            "bwd_std_iat": b_std_iat,
-            "fwd_min_iat": f_min_iat,
-            "bwd_min_iat": b_min_iat,
-            "fwd_max_iat": f_max_iat,
-            "bwd_max_iat": b_max_iat,
+            "fwd_mean_iat": float(f_mean_iat),
+            "bwd_mean_iat": float(b_mean_iat),
+            "fwd_std_iat": float(f_std_iat),
+            "bwd_std_iat": float(b_std_iat),
+            "fwd_min_iat": float(f_min_iat),
+            "bwd_min_iat": float(b_min_iat),
+            "fwd_max_iat": float(f_max_iat),
+            "bwd_max_iat": float(b_max_iat),
 
-            "fwd_mean_pkt_len": f_mean_len,
-            "bwd_mean_pkt_len": b_mean_len,
-            "fwd_std_pkt_len": f_std_len,
-            "bwd_std_pkt_len": b_std_len,
-            "fwd_min_pkt_len": f_min_len,
-            "bwd_min_pkt_len": b_min_len,
-            "fwd_max_pkt_len": f_max_len,
-            "bwd_max_pkt_len": b_max_len,
+            "fwd_mean_pkt_len": float(f_mean_len),
+            "bwd_mean_pkt_len": float(b_mean_len),
+            "fwd_std_pkt_len": float(f_std_len),
+            "bwd_std_pkt_len": float(b_std_len),
+            "fwd_min_pkt_len": float(f_min_len),
+            "bwd_min_pkt_len": float(b_min_len),
+            "fwd_max_pkt_len": float(f_max_len),
+            "bwd_max_pkt_len": float(b_max_len),
 
-            "fwd_num_bytes": int(fs.sum()),
-            "bwd_num_bytes": int(bs.sum()),
+            "fwd_num_bytes": f_num_bytes,
+            "bwd_num_bytes": b_num_bytes,
 
-            "fwd_num_psh_flags": f["fwd_psh"],
-            "bwd_num_psh_flags": f["bwd_psh"],
-            "fwd_num_rst_flags": f["fwd_rst"],
-            "bwd_num_rst_flags": f["bwd_rst"],
-            "fwd_num_urg_flags": f["fwd_urg"],
-            "bwd_num_urg_flags": f["bwd_urg"],
-
-            "duration": duration,
+            "fwd_num_psh_flags": int(f.get("fwd_psh", 0)),
+            "bwd_num_psh_flags": int(f.get("bwd_psh", 0)),
+            "fwd_num_rst_flags": int(f.get("fwd_rst", 0)),
+            "bwd_num_rst_flags": int(f.get("bwd_rst", 0)),
+            "fwd_num_urg_flags": int(f.get("fwd_urg", 0)),
+            "bwd_num_urg_flags": int(f.get("bwd_urg", 0)),
+            # NOTE: is_attack column is intentionally not set here; main() adds it before reindexing
         }
 
-        meta_rows.append({"src": src, "dst": dst, "sport": sport, "dport": dport, "proto": proto})
+        meta_rows.append({
+            "src": f.get("src", canonical_key[0]),
+            "dst": f.get("dst", canonical_key[1]),
+            "sport": int(f.get("sport", canonical_key[2])),
+            "dport": int(f.get("dport", canonical_key[3])),
+            "proto": int(f.get("proto", canonical_key[4]))
+        })
+
         feature_rows.append(feat)
 
     return feature_rows, meta_rows
@@ -225,6 +258,7 @@ def main():
     parser.add_argument("--prob-threshold", type=float, default=0.75)
     parser.add_argument("--poll-interval", type=float, default=2.0)
     args = parser.parse_args()
+    
 
     print("[OK] Loading model...")
     model = joblib.load(args.model)
@@ -241,7 +275,19 @@ def main():
     print("[INFO] IDS Ready")
     pcap_dir = Path(args.pcap_dir)
     seen = set()
-    logf = open(args.out_log, "a")
+    # -------------------------------
+    # Dynamic daily log folder
+    # -------------------------------
+    today = time.strftime("%Y-%m-%d")
+    log_dir = Path("logs") / today
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    # Full path to today's log file
+    alert_log_path = log_dir / "ids_alerts.log"
+
+    logf = open(alert_log_path, "a")
+    print(f"[INFO] Logging alerts to: {alert_log_path}")
+
 
     global RUNNING
     while RUNNING:

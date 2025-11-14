@@ -11,7 +11,11 @@ from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 
-ALERT_FILE = "ids_alerts.log"
+import time, os
+from pathlib import Path
+
+today = time.strftime("%Y-%m-%d")
+ALERT_FILE = Path("logs") / today / "ids_alerts.log"
 
 console = Console()
 

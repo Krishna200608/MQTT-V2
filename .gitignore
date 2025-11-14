@@ -67,7 +67,7 @@ model_outputs/
 *.onnx
 *.npy
 *.npz
-*.json
+# *.json
 *.log
 *.ckpt
 *.pth
@@ -139,3 +139,4 @@ MANIFEST
 !scripts/
 !scripts/*.py
 !.gitignore
+!.json

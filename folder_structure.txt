@@ -2,24 +2,32 @@ MQTT V2
 ├── 1.md
 ├── attack_synthetic_generator.py
 ├── attacks
+│   ├── broker_config.json
 │   ├── mqtt_bruteforce.py
 │   ├── passwords.txt
-│   ├── run_all_attacks.bat
-│   ├── run_attacks_loop.bat
-│   ├── run_full_attacks.bat
+│   ├── run_all_attacks.ps1
+│   ├── run_attacks_loop.ps1
+│   ├── run_full_attacks.ps1
 │   ├── scan_A.bat
 │   ├── scan_sU.bat
 │   ├── ssh_bruteforce_nmap.bat
 │   └── users.txt
+├── attacks.zip
 ├── clients
+│   ├── broker_config.json
+│   ├── iot_messages.csv
 │   ├── pi_publisher.py
 │   ├── pi_subscriber.py
 │   ├── README.md
-│   ├── run_publisher.bat
-│   └── run_subscriber.bat
+│   ├── run_publisher.ps1
+│   └── run_subscriber.ps1
 ├── commands
-│   ├── start_broker_env.bat
-│   └── stop_broker_env.bat
+│   ├── ids_summary.csv
+│   ├── logs
+│   │   └── 2025-11-15
+│   │       └── ids_alerts.log
+│   ├── start_broker_env.ps1
+│   └── stop_broker_env.ps1
 ├── data
 │   ├── biflow_features
 │   │   ├── biflow_mqtt_bruteforce.csv
@@ -53,13 +61,12 @@ MQTT V2
 │       ├── uniflow_scan_A.csv
 │       ├── uniflow_scan_sU.csv
 │       └── uniflow_sparta.csv
+├── diagnose_pcap.py
 ├── folder_structure.txt
 ├── helper
 │   ├── addresse_commands.md
 │   ├── biflow.md
 │   └── uniflow.md
-├── ids_alerts.log
-├── ids_summary.csv
 ├── live_ids.py
 ├── live_ids_dashboard.py
 ├── model_outputs
@@ -93,30 +100,12 @@ MQTT V2
 │           ├── feature_names.json
 │           ├── model_rf.joblib
 │           └── train_metadata.json
+├── models_config.json
+├── network_config.json
 ├── pcap_files
-│   ├── capture_00001_20251114003209.pcap
-│   ├── capture_00002_20251114003214.pcap
-│   ├── capture_00003_20251114003219.pcap
-│   ├── capture_00004_20251114003224.pcap
-│   ├── capture_00005_20251114003229.pcap
-│   ├── capture_00006_20251114003235.pcap
-│   ├── capture_00007_20251114003240.pcap
-│   ├── capture_00008_20251114003245.pcap
-│   ├── capture_00009_20251114003250.pcap
-│   ├── capture_00010_20251114003255.pcap
-│   ├── capture_00011_20251114003301.pcap
-│   ├── capture_00012_20251114003306.pcap
-│   ├── capture_00013_20251114003311.pcap
-│   ├── capture_00014_20251114003316.pcap
-│   ├── capture_00015_20251114003321.pcap
-│   ├── capture_00016_20251114003326.pcap
-│   ├── capture_00017_20251114003331.pcap
-│   ├── capture_00018_20251114003337.pcap
-│   ├── capture_00019_20251114003342.pcap
-│   ├── capture_00020_20251114003347.pcap
-│   ├── capture_00021_20251114003352.pcap
-│   ├── capture_00022_20251114003357.pcap
-│   └── capture_00023_20251114003402.pcap
+│   ├── capture_00001_20251115013933.pcap
+│   ├── capture_00002_20251115013938.pcap
+│   └── capture_00003_20251115013943.pcap
 ├── print_structure.py
 ├── README.md
 ├── requirements.txt

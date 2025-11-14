@@ -10,7 +10,8 @@ Write-Host "============================================================" -Foreg
 # Load network_config.json (MUST BE IN ROOT)
 # ------------------------------------------------------------
 $ScriptRoot = $PSScriptRoot
-$ConfigPath = Join-Path $ScriptRoot "network_config.json"
+$ProjectRoot = Split-Path $PSScriptRoot -Parent
+$ConfigPath  = Join-Path $ProjectRoot "network_config.json"
 
 if (!(Test-Path $ConfigPath)) {
     Write-Host "ERROR: network_config.json not found!" -ForegroundColor Red

@@ -355,54 +355,81 @@ def main():
     parser.add_argument("--poll-interval", type=float, default=2.0)
     args = parser.parse_args()
 
-    # load models config
-    models_cfg_path = Path(args.models_config)
-    if not models_cfg_path.exists():
-        print(f"[WARN] models_config.json not found at {models_cfg_path}. Exiting.")
-        sys.exit(1)
-    models_cfg = json.load(open(models_cfg_path))
+    # ---------------------------------------------------------------------
+    # 1. Load models_config.json (absolute resolution of model/meta paths)
+    # ---------------------------------------------------------------------
+    models_cfg_path = Path(args.models_config).resolve()
 
-    # Attempt to load models and metadata
+    if not models_cfg_path.exists():
+        print(f"[ERROR] models_config.json not found at {models_cfg_path}")
+        sys.exit(1)
+
+    with open(models_cfg_path, "r") as f:
+        models_cfg = json.load(f)
+
+    # Resolve all model paths relative to the project root (where models_config.json is)
+    project_root = models_cfg_path.parent
+
     active_models = {}
+
     for key in ("packet", "uniflow", "biflow"):
         entry = models_cfg.get(key)
         if not entry or not entry.get("enabled", False):
-            print(f"[INFO] model '{key}' disabled or not configured.")
+            print(f"[INFO] Model '{key}' disabled or not configured.")
             continue
-        model_path = Path(entry["model_path"])
-        meta_path = Path(entry["meta_path"])
+
+        # Convert to absolute paths
+        model_path = (project_root / entry["model_path"]).resolve()
+        meta_path  = (project_root / entry["meta_path"]).resolve()
+
         if not model_path.exists():
-            print(f"[WARN] model file for '{key}' not found: {model_path}. Skipping.")
+            print(f"[WARN] Model file for '{key}' NOT FOUND: {model_path}")
             continue
         if not meta_path.exists():
-            print(f"[WARN] metadata for '{key}' not found: {meta_path}. Skipping '{key}'.")
+            print(f"[WARN] Metadata for '{key}' NOT FOUND: {meta_path}")
             continue
+
+        # Load model + metadata
         try:
-            mdl = joblib.load(str(model_path))
-            meta_json = json.load(open(str(meta_path)))
+            mdl = joblib.load(model_path)
+            meta_json = json.load(open(meta_path, "r"))
             feature_names = meta_json.get("feature_names", [])
-            active_models[key] = {"model": mdl, "feature_names": feature_names, "meta_json": meta_json}
-            print(f"[OK] Loaded '{key}' model from {model_path}")
+
+            active_models[key] = {
+                "model": mdl,
+                "feature_names": feature_names,
+                "meta_json": meta_json
+            }
+
+            print(f"[OK] Loaded '{key}' model")
         except Exception as e:
-            print(f"[WARN] Failed to load {key} model/meta: {e}")
+            print(f"[ERROR] Failed to load model '{key}': {e}")
 
     if not active_models:
-        print("[ERROR] No models loaded. Check models_config.json and paths.")
+        print("[FATAL] No models successfully loaded. Exiting.")
         sys.exit(1)
 
-    # CSV summary header
+    # ---------------------------------------------------------------------
+    # 2. CSV Summary Initialization
+    # ---------------------------------------------------------------------
     if not Path(args.csv_out).exists():
         with open(args.csv_out, "w") as f:
             f.write("time,pcap,status,attack_count\n")
 
-    # dynamic daily log folder
+    # ---------------------------------------------------------------------
+    # 3. Daily Log Directory
+    # ---------------------------------------------------------------------
     today = time.strftime("%Y-%m-%d")
     log_dir = Path("logs") / today
     log_dir.mkdir(parents=True, exist_ok=True)
+
     alert_log_path = log_dir / "ids_alerts.log"
     logf = open(alert_log_path, "a")
     print(f"[INFO] Logging alerts to: {alert_log_path}")
 
+    # ---------------------------------------------------------------------
+    # 4. Main IDS loop
+    # ---------------------------------------------------------------------
     pcap_dir = Path(args.pcap_dir)
     seen = set()
 
@@ -411,9 +438,10 @@ def main():
         for p in sorted(pcap_dir.glob("*.pcap")):
             if p.name in seen:
                 continue
+
             print(f"[INFO] Processing {p.name}...")
-            # core biflow extraction
             biflow_feats, biflow_meta = extract_biflow_29(p)
+
             if not biflow_feats:
                 seen.add(p.name)
                 continue
@@ -421,129 +449,144 @@ def main():
             attack_count = 0
             per_pcap_alerts = []
 
-            # ----------------------
-            # BIFLOW predictions
-            # ----------------------
+            # ================================================================
+            # BIFLOW MODEL
+            # ================================================================
             if "biflow" in active_models:
                 bm = active_models["biflow"]
+
                 df_b = pd.DataFrame(biflow_feats)
                 df_b["is_attack"] = 0.0
-                # reindex to expected order
                 df_b = df_b.reindex(columns=bm["feature_names"], fill_value=0).astype(float)
-                # broker-only filter
+
                 mask = np.ones(len(df_b), dtype=bool)
                 if args.broker_only and args.broker_ip:
                     mask = [is_relevant_broker_flow(m, args.broker_ip, args.broker_port) for m in biflow_meta]
-                    if not any(mask):
-                        print("[DEBUG] No broker flows for biflow in this pcap.")
-                        pass
+
                 mask_sys = [is_broadcast_or_system_flow(m) for m in biflow_meta]
-                final_mask = [r and not s for r, s in zip(mask, mask_sys)]
+                final_mask = [a and not b for a, b in zip(mask, mask_sys)]
+
                 if any(final_mask):
                     df_sel = df_b.loc[final_mask]
                     meta_sel = [m for m, k in zip(biflow_meta, final_mask) if k]
+
                     preds = bm["model"].predict(df_sel)
                     probs = bm["model"].predict_proba(df_sel)
+
                     for i, lbl in enumerate(preds):
                         prob = float(max(probs[i]))
-                        label_str = str(lbl)
-                        if label_str != "normal" and prob >= args.prob_threshold:
+                        if lbl != "normal" and prob >= args.prob_threshold:
                             attack_count += 1
+
                             entry = {
                                 "time": time.time(),
                                 "pcap": p.name,
                                 "model": "biflow",
                                 "flow": meta_sel[i],
-                                "predicted_label": label_str,
+                                "predicted_label": str(lbl),
                                 "prob": prob
                             }
+
                             print("[ALERT]", entry)
                             logf.write(json.dumps(entry) + "\n")
-                            per_pcap_alerts.append(entry)
 
-            # ----------------------
-            # UNIFLOW predictions (derived from biflow)
-            # ----------------------
+            # ================================================================
+            # UNIFLOW MODEL (derived from biflow)
+            # ================================================================
             if "uniflow" in active_models:
                 um = active_models["uniflow"]
-                # create uniflow rows (2 per biflow)
-                u_rows, u_meta = biflow_to_uniflow_rows(biflow_feats, biflow_meta, um["feature_names"])
+
+                u_rows, u_meta = biflow_to_uniflow_rows(
+                    biflow_feats, biflow_meta, um["feature_names"]
+                )
+
                 if u_rows:
                     df_u = pd.DataFrame(u_rows)
                     df_u["is_attack"] = 0.0
                     df_u = df_u.reindex(columns=um["feature_names"], fill_value=0).astype(float)
-                    # apply broker-only if requested
+
                     mask = np.ones(len(df_u), dtype=bool)
                     if args.broker_only and args.broker_ip:
                         mask = [is_relevant_broker_flow(m, args.broker_ip, args.broker_port) for m in u_meta]
+
                     mask_sys = [is_broadcast_or_system_flow(m) for m in u_meta]
-                    final_mask = [r and not s for r, s in zip(mask, mask_sys)]
+                    final_mask = [a and not b for a, b in zip(mask, mask_sys)]
+
                     if any(final_mask):
                         df_sel = df_u.loc[final_mask]
                         meta_sel = [m for m, k in zip(u_meta, final_mask) if k]
+
                         preds = um["model"].predict(df_sel)
                         probs = um["model"].predict_proba(df_sel)
+
                         for i, lbl in enumerate(preds):
                             prob = float(max(probs[i]))
-                            label_str = str(lbl)
-                            if label_str != "normal" and prob >= args.prob_threshold:
+                            if lbl != "normal" and prob >= args.prob_threshold:
                                 attack_count += 1
+
                                 entry = {
                                     "time": time.time(),
                                     "pcap": p.name,
                                     "model": "uniflow",
                                     "flow": meta_sel[i],
-                                    "predicted_label": label_str,
+                                    "predicted_label": str(lbl),
                                     "prob": prob
                                 }
+
                                 print("[ALERT]", entry)
                                 logf.write(json.dumps(entry) + "\n")
-                                per_pcap_alerts.append(entry)
 
-            # ----------------------
-            # PACKET-level predictions (best-effort)
-            # ----------------------
+            # ================================================================
+            # PACKET MODEL
+            # ================================================================
             if "packet" in active_models:
                 pm = active_models["packet"]
-                # try to extract packet-level rows based on packet meta
-                pkt_rows, pkt_meta = extract_packet_level(p, pm["feature_names"], broker_ip=args.broker_ip, broker_port=args.broker_port)
+                pkt_rows, pkt_meta = extract_packet_level(
+                    p, pm["feature_names"], broker_ip=args.broker_ip, broker_port=args.broker_port
+                )
+
                 if pkt_rows:
                     df_p = pd.DataFrame(pkt_rows)
-                    # ensure ordering and missing columns filled
                     df_p = df_p.reindex(columns=pm["feature_names"], fill_value=0).astype(float)
-                    # apply broker-only & system filters per packet
+
                     mask = np.ones(len(df_p), dtype=bool)
                     if args.broker_only and args.broker_ip:
                         mask = [is_relevant_broker_flow(m, args.broker_ip, args.broker_port) for m in pkt_meta]
-                        if not any(mask):
-                            pass
+
                     mask_sys = [is_broadcast_or_system_flow(m) for m in pkt_meta]
-                    final_mask = [r and not s for r, s in zip(mask, mask_sys)]
+                    final_mask = [a and not b for a, b in zip(mask, mask_sys)]
+
                     if any(final_mask):
                         df_sel = df_p.loc[final_mask]
                         meta_sel = [m for m, k in zip(pkt_meta, final_mask) if k]
+
                         preds = pm["model"].predict(df_sel)
-                        # not all scikit models have predict_proba; guard it
-                        has_proba = hasattr(pm["model"], "predict_proba")
-                        probs = pm["model"].predict_proba(df_sel) if has_proba else None
+                        probs = (
+                            pm["model"].predict_proba(df_sel)
+                            if hasattr(pm["model"], "predict_proba")
+                            else None
+                        )
+
                         for i, lbl in enumerate(preds):
                             prob = float(max(probs[i])) if probs is not None else 1.0
-                            label_str = str(lbl)
-                            if label_str != "normal" and prob >= args.prob_threshold:
+                            if lbl != "normal" and prob >= args.prob_threshold:
                                 attack_count += 1
+
                                 entry = {
                                     "time": time.time(),
                                     "pcap": p.name,
                                     "model": "packet",
                                     "flow": meta_sel[i],
-                                    "predicted_label": label_str,
+                                    "predicted_label": str(lbl),
                                     "prob": prob
                                 }
+
                                 print("[ALERT]", entry)
                                 logf.write(json.dumps(entry) + "\n")
-                                per_pcap_alerts.append(entry)
 
-            # write summary line
+            # ================================================================
+            # Write summary
+            # ================================================================
             with open(args.csv_out, "a") as f:
                 status = "ATTACK" if attack_count > 0 else "NO_ATTACK"
                 f.write(f"{time.time()},{p.name},{status},{attack_count}\n")
@@ -554,6 +597,7 @@ def main():
 
     logf.close()
     print("[INFO] IDS stopped.")
+
 
 if __name__ == "__main__":
     main()

@@ -28,7 +28,7 @@ COMBINED_DIR = DATA_DIR / "combined"
 MODEL_DIR = BASE_DIR / "model_outputs"
 SCRIPTS_DIR = BASE_DIR / "scripts"
 
-FEATURE_LEVELS = ["packet", "uniflow", "biflow"]
+FEATURE_LEVELS = ["uniflow", "biflow", "packet"]
 SEED = 42
 TEST_SPLIT = 0.25
 CV_FOLDS = 5

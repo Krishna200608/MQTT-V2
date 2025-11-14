@@ -1,71 +1,24 @@
-# ============================================================
-# MQTT IDS LAB - RUN ALL ATTACKS SEQUENTIALLY
-# ============================================================
+# RUN ALL ATTACKS ONCE
 
-Write-Host "============================================================" -ForegroundColor Yellow
-Write-Host "     MQTT IDS LAB - Running All Attacks Sequentially        " -ForegroundColor Cyan
-Write-Host "============================================================" -ForegroundColor Yellow
-Write-Host ""
+$ConfigPath = Join-Path $PSScriptRoot "network_config.json"
+$NetConfig = Get-Content $ConfigPath | ConvertFrom-Json
 
-# ----------------------------
-# Load Config
-# ----------------------------
-$configPath = Join-Path $PSScriptRoot "broker_config.json"
-$config = Get-Content $configPath | ConvertFrom-Json
+Write-Host "Target broker: $($NetConfig.broker_ip)" -ForegroundColor Cyan
 
-$BROKER_IP = $config.broker_ip
-$PY        = $config.python_exe
-
-Write-Host "Broker Target: $BROKER_IP" -ForegroundColor Green
-Write-Host ""
-
-# ----------------------------
-# 1) Aggressive Scan (Scan A)
-# ----------------------------
-Write-Host "[1/4] Starting Aggressive Scan (Scan A)..." -ForegroundColor Cyan
-Start-Sleep -Seconds 3
-
+# 1) Aggressive Scan
 & "$PSScriptRoot\scan_A.bat"
-
-Write-Host "Scan A completed.`n" -ForegroundColor Green
-Start-Sleep -Seconds 5
-
-# ----------------------------
-# 2) UDP Scan (Scan sU)
-# ----------------------------
-Write-Host "[2/4] Starting UDP Scan (Scan sU)..." -ForegroundColor Cyan
 Start-Sleep -Seconds 3
 
+# 2) UDP Scan
 & "$PSScriptRoot\scan_sU.bat"
-
-Write-Host "UDP Scan completed.`n" -ForegroundColor Green
-Start-Sleep -Seconds 5
-
-# ----------------------------
-# 3) SSH Brute Force (Sparta Simulation)
-# ----------------------------
-Write-Host "[3/4] Starting SSH Brute Force Attack..." -ForegroundColor Cyan
 Start-Sleep -Seconds 3
 
+# 3) SSH Bruteforce
 & "$PSScriptRoot\ssh_bruteforce_nmap.bat"
-
-Write-Host "SSH brute-force completed.`n" -ForegroundColor Green
-Start-Sleep -Seconds 5
-
-# ----------------------------
-# 4) MQTT Brute Force Attack
-# ----------------------------
-Write-Host "[4/4] Starting MQTT Brute Force Attack..." -ForegroundColor Cyan
 Start-Sleep -Seconds 3
 
-& $PY "$PSScriptRoot\mqtt_bruteforce.py"
+# 4) MQTT Bruteforce
+& python "$PSScriptRoot\mqtt_bruteforce.py"
 
-Write-Host "MQTT brute-force attack completed.`n" -ForegroundColor Green
-Start-Sleep -Seconds 5
-
-
-Write-Host "============================================================" -ForegroundColor Green
-Write-Host "           ALL ATTACKS EXECUTED SUCCESSFULLY                " -ForegroundColor Green
-Write-Host "============================================================" -ForegroundColor Green
-
+Write-Host "All attacks completed." -ForegroundColor Green
 Pause

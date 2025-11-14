@@ -1,27 +1,11 @@
-# ============================================================
-# MQTT CLIENT SUBSCRIBER
-# ============================================================
+$ConfigPath = Join-Path $PSScriptRoot "network_config.json"
+$NetConfig = Get-Content $ConfigPath | ConvertFrom-Json
 
-Write-Host "============================================================" -ForegroundColor Yellow
-Write-Host "             MQTT CLIENT SUBSCRIBER STARTED                 " -ForegroundColor Cyan
-Write-Host "============================================================" -ForegroundColor Yellow
-Write-Host ""
+$BrokerIP = $NetConfig.broker_ip
+$PythonExe = "python"
 
-# ----------------------------
-# Load Config
-# ----------------------------
-$configPath = Join-Path $PSScriptRoot "broker_config.json"
-$config = Get-Content $configPath | ConvertFrom-Json
+Write-Host "Subscriber connecting to broker at $BrokerIP" -ForegroundColor Cyan
 
-$BROKER_IP = $config.broker_ip
-$PY        = $config.python_exe
+& $PythonExe "$PSScriptRoot\pi_subscriber.py" --broker $BrokerIP --topic "sensors/#" --out "$PSScriptRoot\iot_messages.csv"
 
-Write-Host "Subscribing to sensors/# on broker $BROKER_IP..." -ForegroundColor Green
-
-# ----------------------------
-# Run subscriber
-# ----------------------------
-& $PY "$PSScriptRoot\pi_subscriber.py" --broker $BROKER_IP --topic "sensors/#" --out "$PSScriptRoot\iot_messages.csv"
-
-Write-Host "`nSubscriber stopped." -ForegroundColor Yellow
 Pause

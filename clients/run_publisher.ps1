@@ -1,28 +1,13 @@
-# ============================================================
-# MQTT CLIENT PUBLISHER - IOT SENSOR SIMULATOR
-# ============================================================
+# MQTT Publisher Script (Network Config Based)
 
-Write-Host "============================================================" -ForegroundColor Yellow
-Write-Host "        MQTT CLIENT PUBLISHER - SENSOR SIMULATOR           " -ForegroundColor Cyan
-Write-Host "============================================================" -ForegroundColor Yellow
-Write-Host ""
+$ConfigPath = Join-Path $PSScriptRoot "network_config.json"
+$NetConfig = Get-Content $ConfigPath | ConvertFrom-Json
 
-# ----------------------------
-# Load Config
-# ----------------------------
-$configPath = Join-Path $PSScriptRoot "broker_config.json"
-$config = Get-Content $configPath | ConvertFrom-Json
+$BrokerIP = $NetConfig.broker_ip
+$PythonExe = "python"
 
-$BROKER_IP = $config.broker_ip
-$PY        = $config.python_exe
+Write-Host "Publisher connecting to broker at $BrokerIP" -ForegroundColor Cyan
 
-Write-Host "Using Broker: $BROKER_IP" -ForegroundColor Green
-Write-Host "Starting Publisher..." -ForegroundColor Cyan
+& $PythonExe "$PSScriptRoot\pi_publisher.py" --broker $BrokerIP --rate 5
 
-# ----------------------------
-# Run publisher
-# ----------------------------
-& $PY "$PSScriptRoot\pi_publisher.py" --broker $BROKER_IP --rate 5
-
-Write-Host "`nPublisher stopped." -ForegroundColor Yellow
 Pause

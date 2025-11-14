@@ -1,0 +1,20 @@
+{
+  "packet": {
+    "enabled": true,
+    "model_path": "model_outputs/packet/decision_tree/model_dt.joblib",
+    "meta_path": "model_outputs/packet/decision_tree/packet_metadata.json",
+    "feature_level": "packet"
+  },
+  "uniflow": {
+    "enabled": true,
+    "model_path": "model_outputs/uniflow/random_forest/model_rf.joblib",
+    "meta_path": "model_outputs/uniflow/random_forest/train_metadata.json",
+    "feature_level": "uniflow"
+  },
+  "biflow": {
+    "enabled": true,
+    "model_path": "model_outputs/biflow/random_forest/model_rf.joblib",
+    "meta_path": "model_outputs/biflow/random_forest/train_metadata.json",
+    "feature_level": "biflow"
+  }
+}

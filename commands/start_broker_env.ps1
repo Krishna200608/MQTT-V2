@@ -8,11 +8,13 @@ $BrokerIP = $NetConfig.broker_ip
 $Client1  = $NetConfig.client1_ip
 $Client2  = $NetConfig.client2_ip
 $Router   = $NetConfig.router_ip
+$Attacker   = $NetConfig.attacker_ip
 
 Write-Host "Broker IP: $BrokerIP" -ForegroundColor Yellow
 Write-Host "Client 1:  $Client1" -ForegroundColor Yellow
 Write-Host "Client 2:  $Client2" -ForegroundColor Yellow
 Write-Host "Router:    $Router" -ForegroundColor Yellow
+Write-Host "Attacker:   $Attacker" -ForegroundColor Yellow
 
 # ============================================================
 # MQTT IDS LAB - BROKER + PCAP CAPTURE + LIVE IDS + DASHBOARD
@@ -78,7 +80,7 @@ Write-Host "------------------------------------------------------------" -Foreg
 Write-Host "[2] Starting rotating packet capture (TShark, filtered)" -ForegroundColor Green
 Write-Host "------------------------------------------------------------" -ForegroundColor Blue
 
-$Filter = "(host $BrokerIP or host $Client1 or host $Client2) " +
+$Filter = "(host $BrokerIP or host $Client1 or host $Client2 or host $Attacker) " +
           "and not host $Router " +
           "and not udp port 53 and not udp port 67 and not udp port 68 " +
           "and not udp port 137 and not udp port 138 " +
@@ -97,7 +99,7 @@ Write-Host "------------------------------------------------------------" -Foreg
 Write-Host "[3] Starting Live IDS" -ForegroundColor Green
 Write-Host "------------------------------------------------------------" -ForegroundColor Blue
 
-$IdsCmd = "$PythonExe `"$Base\live_ids.py`" --pcap-dir `"$PcapDir`" --model `"$Model`" --meta `"$Meta`""
+$IdsCmd = "$PythonExe `"$Base\live_ids.py`" --pcap-dir `"$PcapDir`" --model `"$Model`" --meta `"$Meta`" --broker-ip $BrokerIP"
 Start-Process "cmd.exe" -ArgumentList "/k $IdsCmd"
 Start-Sleep -Seconds 2
 

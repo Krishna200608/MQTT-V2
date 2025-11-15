@@ -1,0 +1,63 @@
+# analyze_pcaps_py.py
+import os, json, traceback
+from pathlib import Path
+from scapy.all import rdpcap, IP, TCP, UDP, Raw, ARP, ICMP
+import importlib, sys
+
+ROOT = Path.cwd()
+PCAP_DIR = ROOT / "pcap_files"  # where you extracted zip
+OUT = ROOT / "pcap_analysis_summary.json"
+
+def scan_pcap(p):
+    try:
+        pkts = rdpcap(str(p))
+    except Exception as e:
+        return {"path": str(p), "error": str(e)}
+    stats = {"path": str(p), "total": len(pkts)}
+    syn = 0; syn_no_ack = 0
+    dst_ports = {}
+    mqtt_connects = 0
+    ip_pkts = 0; tcp_pkts = 0; udp_pkts = 0
+    for pkt in pkts:
+        if pkt.haslayer(ARP):
+            stats.setdefault("arp",0); stats["arp"]+=1
+        if pkt.haslayer(ICMP):
+            stats.setdefault("icmp",0); stats["icmp"]+=1
+        if pkt.haslayer(IP):
+            ip_pkts += 1
+            if pkt.haslayer(TCP):
+                tcp_pkts += 1
+                dport = int(pkt[TCP].dport)
+                dst_ports[dport] = dst_ports.get(dport,0)+1
+                flags = int(pkt[TCP].flags)
+                if flags & 0x02:
+                    syn += 1
+                    if not (flags & 0x10): syn_no_ack += 1
+                if pkt.haslayer(Raw):
+                    payload = bytes(pkt[Raw].load)
+                    if len(payload)>0 and payload[0]==0x10:
+                        mqtt_connects +=1
+            elif pkt.haslayer(UDP):
+                udp_pkts += 1
+                dport = int(pkt[UDP].dport)
+                dst_ports[dport] = dst_ports.get(dport,0)+1
+    stats["ip"] = ip_pkts
+    stats["tcp"] = tcp_pkts
+    stats["udp"] = udp_pkts
+    stats["syn"] = syn
+    stats["syn_no_ack"] = syn_no_ack
+    stats["unique_dst_ports"] = len(dst_ports)
+    stats["top_dst_ports"] = sorted(dst_ports.items(), key=lambda x:-x[1])[:10]
+    stats["mqtt_connects"] = mqtt_connects
+    return stats
+
+if __name__ == "__main__":
+    if not PCAP_DIR.exists():
+        print("pcap dir not found:", PCAP_DIR); exit(1)
+    out = []
+    for p in PCAP_DIR.glob("*.pcap"):
+        print("Processing", p.name)
+        out.append(scan_pcap(p))
+    with open(OUT, "w") as f:
+        json.dump(out, f, indent=2)
+    print("Wrote", OUT)

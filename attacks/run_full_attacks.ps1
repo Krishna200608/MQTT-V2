@@ -50,7 +50,7 @@ switch ($choice) {
 
     # 4) MQTT Bruteforce
     Write-Host "`n[4] Running MQTT Bruteforce (Python)..." -ForegroundColor Yellow
-    python $MQTT_BRUTE
+    python $MQTT_BRUTE $TARGET
 
     Write-Host "`nALL ATTACKS COMPLETED." -ForegroundColor Green
     Pause
@@ -88,7 +88,7 @@ switch ($choice) {
 
         # 4) MQTT Bruteforce
         Write-Host "`n[4] Running MQTT Bruteforce..." -ForegroundColor Yellow
-        python $MQTT_BRUTE
+        python $MQTT_BRUTE $TARGET
 
         Write-Host "`n===== Cycle $i completed =====" -ForegroundColor Green
         Start-Sleep -Seconds 5

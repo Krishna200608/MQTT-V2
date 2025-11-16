@@ -483,7 +483,8 @@ def is_broadcast_or_system_flow(meta):
 def main():
     parser = argparse.ArgumentParser(description="Real-time IDS unified (packet/uniflow/biflow)")
     parser.add_argument("--pcap-dir", required=True)
-    parser.add_argument("--models-config", default="models_config.json", help="Path to models_config.json")
+    parser.add_argument("--models-config", default="../configs/models_config.json",
+                    help="Path to models_config.json (default: ../configs/models_config.json)")
     parser.add_argument("--out-log", default="ids_alerts.log")
     parser.add_argument("--csv-out", default="ids_summary.csv")
     parser.add_argument("--broker-ip", default=None)
@@ -505,8 +506,8 @@ def main():
     with open(models_cfg_path, "r") as f:
         models_cfg = json.load(f)
 
-    # Resolve all model paths relative to the project root (where models_config.json is)
-    project_root = models_cfg_path.parent
+    # Resolve paths relative to PROJECT ROOT, not configs/
+    project_root = models_cfg_path.parent.parent
 
     active_models = {}
 

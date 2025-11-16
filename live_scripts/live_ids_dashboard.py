@@ -15,9 +15,16 @@ import time, os
 from pathlib import Path
 
 today = time.strftime("%Y-%m-%d")
-ALERT_FILE = Path("logs") / today / "ids_alerts.log"
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+ALERT_FILE = PROJECT_ROOT / "commands" / "logs" / today / "ids_alerts.log"
 console = Console()
+
+if not ALERT_FILE.exists():
+    console.print(f"[yellow]Warning: No alert log found at {ALERT_FILE}[/yellow]")
+
+
+
 
 
 def load_alerts(path):

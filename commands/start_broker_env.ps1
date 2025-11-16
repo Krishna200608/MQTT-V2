@@ -7,12 +7,12 @@ Write-Host "      MQTT IDS LAB - START BROKER + LIVE IDS + CAPTURE      " -Foreg
 Write-Host "============================================================" -ForegroundColor Magenta
 
 # ---------------------- Load Config --------------------------
-$ScriptRoot = $PSScriptRoot
-$ProjectRoot = Split-Path $PSScriptRoot -Parent
-$ConfigPath  = Join-Path $ProjectRoot "network_config.json"
+$ScriptRoot  = $PSScriptRoot
+$ProjectRoot = Split-Path $ScriptRoot -Parent
+$ConfigPath  = Join-Path $ProjectRoot "configs/network_config.json"
 
 if (!(Test-Path $ConfigPath)) {
-    Write-Host "ERROR: network_config.json not found!" -ForegroundColor Red
+    Write-Host "ERROR: network_config.json not found at $ConfigPath" -ForegroundColor Red
     exit
 }
 
@@ -30,11 +30,13 @@ Write-Host "Client 2 : $Client2" -ForegroundColor Yellow
 Write-Host "Attacker : $Attacker" -ForegroundColor Yellow
 
 # ---------------------- Directories --------------------------
-$Base      = Split-Path $ScriptRoot -Parent
-$PcapDir   = Join-Path $Base "pcap_files"
-$PythonExe = "python"
-$MosqConf  = "C:\mosquitto_data\mosquitto.conf"
-$Dashboard = Join-Path $Base "live_ids_dashboard.py"
+$Base       = $ProjectRoot
+$PcapDir    = Join-Path $Base "pcap_files"
+$PythonExe  = "python"
+$MosqConf   = "C:\mosquitto_data\mosquitto.conf"
+
+# Correct location of the dashboard
+$Dashboard  = Join-Path $Base "live_scripts/live_ids_dashboard.py"
 
 # ---------------------- Cleanup ------------------------------
 Write-Host "`n[CLEANUP] Clearing PCAP directory..." -ForegroundColor Cyan
@@ -54,25 +56,10 @@ Start-Sleep -Seconds 2
 
 # ---------------------- Auto Interface Selection -------------
 Write-Host "`n[2] Selecting correct network interface..." -ForegroundColor Cyan
-
-# if ($BrokerIP -eq "127.0.0.1") {
-#     # All services on one PC → Loopback
-#     $Interface = "Npcap Loopback Adapter"
-#     Write-Host "Mode: Single Laptop (Localhost)" -ForegroundColor Green
-#     Write-Host "Selected Interface: LOOPBACK" -ForegroundColor Green
-# } else {
-#     # Multi-laptop network → Wi-Fi
-#     $Interface = "Wi-Fi"
-#     Write-Host "Mode: Multi-Laptop (LAN)" -ForegroundColor Green
-#     Write-Host "Selected Interface: WIFI" -ForegroundColor Green
-# }
 $Interface = "Ethernet"
 
 # ------------------- Filter (host only) ----------------------
-# $Filter = "(host $BrokerIP or host $Client1 or host $Client2 or host $Attacker)"
-# $Filter = "(host 192.168.0.102 or host 192.168.0.103)"
 $Filter = "(host 10.0.0.1 or host 10.0.0.2)"
-
 
 Write-Host "`nUsing Filter: " -ForegroundColor Cyan
 Write-Host $Filter -ForegroundColor Yellow
@@ -81,19 +68,23 @@ Write-Host $Filter -ForegroundColor Yellow
 Write-Host "`n[3] Starting rotating capture..." -ForegroundColor Green
 
 $CaptureCmd = "tshark -i `"$Interface`" -b duration:5 -w `"$PcapDir\capture.pcap`" -f `"$Filter`""
-
 Start-Process "cmd.exe" -ArgumentList "/k $CaptureCmd"
 Start-Sleep -Seconds 1
 
 # ---------------------- Start Live IDS -----------------------
 Write-Host "`n[4] Starting Live IDS..." -ForegroundColor Green
 
-$IdsCmd = "$PythonExe `"$Base\live_ids.py`" --pcap-dir `"$PcapDir`" --models-config `"$Base\models_config.json`" --broker-ip $BrokerIP --broker-only"
+$ModelsConfig = Join-Path $Base "configs/models_config.json"
+$LiveIDS      = Join-Path $Base "live_scripts/live_ids.py"
+
+$IdsCmd = "$PythonExe `"$LiveIDS`" --pcap-dir `"$PcapDir`" --models-config `"$ModelsConfig`" --broker-ip $BrokerIP --broker-only"
+
 Start-Process "cmd.exe" -ArgumentList "/k $IdsCmd"
 Start-Sleep -Seconds 1
 
 # ---------------------- Start Dashboard ----------------------
 Write-Host "`n[5] Starting Dashboard..." -ForegroundColor Green
+
 $DashCmd = "$PythonExe `"$Dashboard`""
 Start-Process "cmd.exe" -ArgumentList "/k $DashCmd"
 Start-Sleep -Seconds 1

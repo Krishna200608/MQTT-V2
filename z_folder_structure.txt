@@ -1,7 +1,5 @@
 MQTT V2
-├── 1.md
-├── analyze_pcaps_py
-├── attack_synthetic_generator.py
+├── __pycache__
 ├── attacks
 │   ├── mqtt_bruteforce.py
 │   ├── passwords.txt
@@ -24,6 +22,11 @@ MQTT V2
 │   │       └── ids_alerts.log
 │   ├── start_broker_env.ps1
 │   └── stop_broker_env.ps1
+├── configs
+│   ├── models_config.json
+│   ├── network_config.json
+│   ├── network_config1.json
+│   └── network_config3.json
 ├── data
 │   ├── biflow_features
 │   │   ├── biflow_mqtt_bruteforce.csv
@@ -57,16 +60,19 @@ MQTT V2
 │       ├── uniflow_scan_A.csv
 │       ├── uniflow_scan_sU.csv
 │       └── uniflow_sparta.csv
-├── diagnose_pcap.py
-├── folder_structure.txt
+├── debug
+│   ├── 1.md
+│   ├── analyze_pcaps_py
+│   └── image.png
 ├── helper
 │   ├── addresse_commands.md
 │   ├── biflow.md
 │   └── uniflow.md
-├── image.png
-├── live_ids.py
-├── live_ids_dashboard.py
+├── live_scripts
+│   ├── live_ids.py
+│   └── live_ids_dashboard.py
 ├── model_outputs
+│   ├── all_meta_data_of_model.json
 │   ├── biflow
 │   │   └── random_forest
 │   │       ├── evaluation_results
@@ -77,6 +83,7 @@ MQTT V2
 │   │       ├── feature_names.json
 │   │       ├── model_rf.joblib
 │   │       └── train_metadata.json
+│   ├── combine_metadata.py
 │   ├── packet
 │   │   └── decision_tree
 │   │       ├── evaluation_results
@@ -97,19 +104,23 @@ MQTT V2
 │           ├── feature_names.json
 │           ├── model_rf.joblib
 │           └── train_metadata.json
-├── models_config.json
-├── network_config.json
-├── network_config1.json
-├── network_config3.json
-├── pcap_analysis_summary.json
 ├── pcap_files
-├── pcap_files.zip
+│   ├── capture_00001_20251116115001.pcap
+│   ├── capture_00002_20251116115006.pcap
+│   ├── capture_00003_20251116115011.pcap
+│   ├── capture_00004_20251116115016.pcap
+│   ├── capture_00005_20251116115021.pcap
+│   ├── capture_00006_20251116115027.pcap
+│   └── capture_00007_20251116115032.pcap
 ├── print_structure.py
 ├── README.md
 ├── requirements.txt
-└── scripts
-    ├── evaluate_model.py
-    ├── pcap_to_features.py
-    ├── prepare_combined_csv.py
-    ├── run_all.py
-    └── train_model.py
+├── scripts
+│   ├── evaluate_model.py
+│   ├── pcap_packet_features.py
+│   ├── pcap_parser.py
+│   ├── prepare_combined_csv.py
+│   ├── print_packets.py
+│   ├── run_all.py
+│   └── train_model.py
+└── z_folder_structure.txt

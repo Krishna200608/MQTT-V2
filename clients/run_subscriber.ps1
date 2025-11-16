@@ -1,5 +1,5 @@
 $ProjectRoot = Split-Path $PSScriptRoot -Parent
-$ConfigPath  = Join-Path $ProjectRoot "network_config.json"
+$ConfigPath  = Join-Path $ProjectRoot "configs/network_config.json"
 $NetConfig = Get-Content $ConfigPath | ConvertFrom-Json
 
 $BrokerIP = $NetConfig.broker_ip

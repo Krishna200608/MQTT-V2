@@ -57,38 +57,39 @@ Start-Sleep -Seconds 2
 # ---------------------- Network Interface --------------------
 Write-Host "`n[2] Selecting correct network interface..." -ForegroundColor Cyan
 # Auto-detect NIC that carries attacker traffic
-Write-Host "`n[2] Auto-detecting correct network interface..." -ForegroundColor Cyan
+# Write-Host "`n[2] Auto-detecting correct network interface..." -ForegroundColor Cyan
 
-$AttackerIP = $Attacker
+# $AttackerIP = $Attacker
 
-$Interfaces = @(tshark -D)
+# $Interfaces = @(tshark -D)
 
-$DetectedNIC = $null
+# $DetectedNIC = $null
 
-foreach ($line in $Interfaces) {
-    if ($line -match '^\s*(\d+)\.\s+(.*)$') {
-        $idx = $matches[1]
-        $name = $matches[2]
+# foreach ($line in $Interfaces) {
+#     if ($line -match '^\s*(\d+)\.\s+(.*)$') {
+#         $idx = $matches[1]
+#         $name = $matches[2]
 
-        Write-Host ("Testing NIC {0}: {1}" -f $idx, $name) -ForegroundColor Yellow
+#         Write-Host ("Testing NIC {0}: {1}" -f $idx, $name) -ForegroundColor Yellow
 
-        $out = tshark -i $idx -a duration:3 -f "host $AttackerIP" 2>&1
+#         $out = tshark -i $idx -a duration:3 -f "host $AttackerIP" 2>&1
 
-        if ($out -match "Captured [1-9]") {
-            Write-Host ">>> MATCH FOUND: $idx ($name)" -ForegroundColor Green
-            $DetectedNIC = $idx
-            break
-        }
-    }
-}
+#         if ($out -match "Captured [1-9]") {
+#             Write-Host ">>> MATCH FOUND: $idx ($name)" -ForegroundColor Green
+#             $DetectedNIC = $idx
+#             break
+#         }
+#     }
+# }
 
-if ($DetectedNIC -eq $null) {
-    Write-Host "ERROR: No NIC detected with attacker traffic!" -ForegroundColor Red
-    pause
-    exit
-}
+# if ($DetectedNIC -eq $null) {
+#     Write-Host "ERROR: No NIC detected with attacker traffic!" -ForegroundColor Red
+#     pause
+#     exit
+# }
 
-$Interface = $DetectedNIC
+# $Interface = $DetectedNIC
+$Interface = "Ethernet"
 Write-Host "Using NIC index: $Interface" -ForegroundColor Green
 
 # ---------------------- Tshark Filter ------------------------

@@ -22,7 +22,6 @@ $BrokerIP = $NetConfig.broker_ip
 $Client1  = $NetConfig.client1_ip
 $Client2  = $NetConfig.client2_ip
 $Attacker = $NetConfig.attacker_ip
-$Router   = $NetConfig.router_ip
 
 Write-Host "Broker   : $BrokerIP" -ForegroundColor Yellow
 Write-Host "Client 1 : $Client1" -ForegroundColor Yellow
@@ -35,34 +34,34 @@ $PcapDir    = Join-Path $Base "pcap_files"
 $PythonExe  = "python"
 $MosqConf   = "C:\mosquitto_data\mosquitto.conf"
 
-# Correct location of the dashboard
+# Correct paths for scripts
+$LiveIDS    = Join-Path $Base "live_scripts/live_ids.py"
 $Dashboard  = Join-Path $Base "live_scripts/live_ids_dashboard.py"
+$ModelsConfig = Join-Path $Base "configs/models_config.json"
 
 # ---------------------- Cleanup ------------------------------
 Write-Host "`n[CLEANUP] Clearing PCAP directory..." -ForegroundColor Cyan
-if (Test-Path $PcapDir) {
+if (Test-Path $PcapDir)) {
     Get-ChildItem $PcapDir -File | Remove-Item -Force
 } else {
     New-Item -ItemType Directory -Path $PcapDir | Out-Null
 }
 Write-Host "[OK] pcap_files is clean." -ForegroundColor Green
-
-Start-Sleep -Milliseconds 600
+Start-Sleep -Milliseconds 500
 
 # ---------------------- Start Broker -------------------------
 Write-Host "`n[1] Starting Mosquitto Broker..." -ForegroundColor Green
 Start-Process "cmd.exe" -ArgumentList "/k mosquitto -c `"$MosqConf`" -v"
 Start-Sleep -Seconds 2
 
-# ---------------------- Auto Interface Selection -------------
+# ---------------------- Network Interface --------------------
 Write-Host "`n[2] Selecting correct network interface..." -ForegroundColor Cyan
 $Interface = "Ethernet"
+Write-Host "Using NIC: $Interface" -ForegroundColor Yellow
 
-# ------------------- Filter (host only) ----------------------
-$Filter = "(host 10.0.0.1 or host 10.0.0.2)"
-
-Write-Host "`nUsing Filter: " -ForegroundColor Cyan
-Write-Host $Filter -ForegroundColor Yellow
+# ---------------------- Tshark Filter ------------------------
+$Filter = "tcp or udp or icmp"
+Write-Host "`nFilter Applied: $Filter" -ForegroundColor Yellow
 
 # ---------------------- Start Tshark -------------------------
 Write-Host "`n[3] Starting rotating capture..." -ForegroundColor Green
@@ -74,11 +73,7 @@ Start-Sleep -Seconds 1
 # ---------------------- Start Live IDS -----------------------
 Write-Host "`n[4] Starting Live IDS..." -ForegroundColor Green
 
-$ModelsConfig = Join-Path $Base "configs/models_config.json"
-$LiveIDS      = Join-Path $Base "live_scripts/live_ids.py"
-
 $IdsCmd = "$PythonExe `"$LiveIDS`" --pcap-dir `"$PcapDir`" --models-config `"$ModelsConfig`" --broker-ip $BrokerIP --broker-only"
-
 Start-Process "cmd.exe" -ArgumentList "/k $IdsCmd"
 Start-Sleep -Seconds 1
 

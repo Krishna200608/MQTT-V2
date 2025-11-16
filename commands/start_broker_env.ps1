@@ -73,7 +73,7 @@ Start-Sleep -Seconds 1
 # ---------------------- Start Live IDS -----------------------
 Write-Host "`n[4] Starting Live IDS..." -ForegroundColor Green
 
-$IdsCmd = "$PythonExe `"$LiveIDS`" --pcap-dir `"$PcapDir`" --models-config `"$ModelsConfig`" --broker-ip $BrokerIP --broker-only"
+$IdsCmd = "$PythonExe `"$LiveIDS`" --pcap-dir `"$PcapDir`" --models-config `"$ModelsConfig`" --broker-ip $BrokerIP"
 Start-Process "cmd.exe" -ArgumentList "/k $IdsCmd"
 Start-Sleep -Seconds 1
 

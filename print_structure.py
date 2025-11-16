@@ -41,7 +41,7 @@ if __name__ == "__main__":
     all_lines += build_tree(root)
 
     # Save output to tree.txt
-    output_file = root / "folder_structure.txt"
+    output_file = root / "z_folder_structure.txt"
     output_file.write_text("\n".join(all_lines), encoding="utf-8")
 
     print("\n✅ Folder structure saved to tree.txt successfully.")

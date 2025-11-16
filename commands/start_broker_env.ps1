@@ -70,7 +70,7 @@ foreach ($line in $Interfaces) {
         $idx = $matches[1]
         $name = $matches[2]
 
-        Write-Host "Testing NIC $idx: $name" -ForegroundColor Yellow
+        Write-Host ("Testing NIC {0}: {1}" -f $idx, $name) -ForegroundColor Yellow
 
         $out = tshark -i $idx -a duration:3 -f "host $AttackerIP" 2>&1
 

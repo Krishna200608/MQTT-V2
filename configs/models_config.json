@@ -1,6 +1,6 @@
 {
   "packet": {
-    "enabled": true,
+    "enabled": false,
     "model_path": "model_outputs/packet/decision_tree/model_dt.joblib",
     "meta_path": "model_outputs/packet/decision_tree/train_metadata.json",
     "feature_level": "packet"

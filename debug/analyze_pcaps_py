@@ -1,63 +1,123 @@
 # analyze_pcaps_py.py
-import os, json, traceback
+
+import os
+import json
+import traceback
 from pathlib import Path
-from scapy.all import rdpcap, IP, TCP, UDP, Raw, ARP, ICMP
-import importlib, sys
 
-ROOT = Path.cwd()
-PCAP_DIR = ROOT / "pcap_files"  # where you extracted zip
-OUT = ROOT / "pcap_analysis_summary.json"
+from scapy.all import rdpcap
+from scapy.layers.inet import IP, TCP, UDP, ICMP
+from scapy.layers.l2 import ARP
+from scapy.packet import Raw
 
-def scan_pcap(p):
+# -------------------------------------------------------------
+# Directory setup
+# -------------------------------------------------------------
+ROOT = Path(__file__).resolve().parent.parent  # go up one level
+PCAP_DIR = ROOT / "pcap_files"
+OUT = ROOT / "debug/pcap_analysis_summary.json"
+
+# -------------------------------------------------------------
+# Analyze a single PCAP file
+# -------------------------------------------------------------
+def scan_pcap(path: Path):
+    """Process a single PCAP and extract summary statistics."""
     try:
-        pkts = rdpcap(str(p))
+        pkts = rdpcap(str(path))
     except Exception as e:
-        return {"path": str(p), "error": str(e)}
-    stats = {"path": str(p), "total": len(pkts)}
-    syn = 0; syn_no_ack = 0
+        return {"path": str(path), "error": f"Could not read: {e}"}
+
+    stats = {
+        "path": str(path),
+        "total_packets": len(pkts)
+    }
+
+    # Counters
+    syn = 0
+    syn_no_ack = 0
     dst_ports = {}
+
     mqtt_connects = 0
-    ip_pkts = 0; tcp_pkts = 0; udp_pkts = 0
+    ip_pkts = 0
+    tcp_pkts = 0
+    udp_pkts = 0
+    arp_pkts = 0
+    icmp_pkts = 0
+
+    # ---------------------------------------------------------
+    # Parse packets
+    # ---------------------------------------------------------
     for pkt in pkts:
+
         if pkt.haslayer(ARP):
-            stats.setdefault("arp",0); stats["arp"]+=1
+            arp_pkts += 1
+
         if pkt.haslayer(ICMP):
-            stats.setdefault("icmp",0); stats["icmp"]+=1
+            icmp_pkts += 1
+
         if pkt.haslayer(IP):
             ip_pkts += 1
+
             if pkt.haslayer(TCP):
                 tcp_pkts += 1
+
                 dport = int(pkt[TCP].dport)
-                dst_ports[dport] = dst_ports.get(dport,0)+1
+                dst_ports[dport] = dst_ports.get(dport, 0) + 1
+
                 flags = int(pkt[TCP].flags)
-                if flags & 0x02:
+                if flags & 0x02:  # SYN
                     syn += 1
-                    if not (flags & 0x10): syn_no_ack += 1
+                    if not (flags & 0x10):  # Missing ACK
+                        syn_no_ack += 1
+
+                # MQTT detection via control packet type (0x10 = CONNECT)
                 if pkt.haslayer(Raw):
                     payload = bytes(pkt[Raw].load)
-                    if len(payload)>0 and payload[0]==0x10:
-                        mqtt_connects +=1
+                    if payload and payload[0] == 0x10:
+                        mqtt_connects += 1
+
             elif pkt.haslayer(UDP):
                 udp_pkts += 1
                 dport = int(pkt[UDP].dport)
-                dst_ports[dport] = dst_ports.get(dport,0)+1
-    stats["ip"] = ip_pkts
-    stats["tcp"] = tcp_pkts
-    stats["udp"] = udp_pkts
+                dst_ports[dport] = dst_ports.get(dport, 0) + 1
+
+    # ---------------------------------------------------------
+    # Save stats
+    # ---------------------------------------------------------
+    stats["ip_packets"] = ip_pkts
+    stats["tcp_packets"] = tcp_pkts
+    stats["udp_packets"] = udp_pkts
+    stats["arp_packets"] = arp_pkts
+    stats["icmp_packets"] = icmp_pkts
+
     stats["syn"] = syn
     stats["syn_no_ack"] = syn_no_ack
+
     stats["unique_dst_ports"] = len(dst_ports)
-    stats["top_dst_ports"] = sorted(dst_ports.items(), key=lambda x:-x[1])[:10]
-    stats["mqtt_connects"] = mqtt_connects
+    stats["top_dst_ports"] = sorted(dst_ports.items(), key=lambda x: -x[1])[:10]
+
+    stats["mqtt_connect_packets"] = mqtt_connects
+
     return stats
 
+
+# -------------------------------------------------------------
+# Main
+# -------------------------------------------------------------
 if __name__ == "__main__":
     if not PCAP_DIR.exists():
-        print("pcap dir not found:", PCAP_DIR); exit(1)
-    out = []
-    for p in PCAP_DIR.glob("*.pcap"):
-        print("Processing", p.name)
-        out.append(scan_pcap(p))
+        print("PCAP directory not found:", PCAP_DIR)
+        exit(1)
+
+    results = []
+
+    print(f"Scanning PCAPs in: {PCAP_DIR}")
+
+    for pcap in PCAP_DIR.glob("*.pcap"):
+        print(f"Processing {pcap.name} ...")
+        results.append(scan_pcap(pcap))
+
     with open(OUT, "w") as f:
-        json.dump(out, f, indent=2)
-    print("Wrote", OUT)
+        json.dump(results, f, indent=2)
+
+    print(f"\nSummary written to: {OUT}")

@@ -1,20 +1,16 @@
 MQTT V2
 ├── 1.md
+├── analyze_pcaps_py
 ├── attack_synthetic_generator.py
 ├── attacks
-│   ├── broker_config.json
 │   ├── mqtt_bruteforce.py
 │   ├── passwords.txt
-│   ├── run_all_attacks.ps1
-│   ├── run_attacks_loop.ps1
 │   ├── run_full_attacks.ps1
 │   ├── scan_A.bat
 │   ├── scan_sU.bat
 │   ├── ssh_bruteforce_nmap.bat
 │   └── users.txt
-├── attacks.zip
 ├── clients
-│   ├── broker_config.json
 │   ├── iot_messages.csv
 │   ├── pi_publisher.py
 │   ├── pi_subscriber.py
@@ -67,6 +63,7 @@ MQTT V2
 │   ├── addresse_commands.md
 │   ├── biflow.md
 │   └── uniflow.md
+├── image.png
 ├── live_ids.py
 ├── live_ids_dashboard.py
 ├── model_outputs
@@ -102,10 +99,11 @@ MQTT V2
 │           └── train_metadata.json
 ├── models_config.json
 ├── network_config.json
+├── network_config1.json
+├── network_config3.json
+├── pcap_analysis_summary.json
 ├── pcap_files
-│   ├── capture_00001_20251115013933.pcap
-│   ├── capture_00002_20251115013938.pcap
-│   └── capture_00003_20251115013943.pcap
+├── pcap_files.zip
 ├── print_structure.py
 ├── README.md
 ├── requirements.txt

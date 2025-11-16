@@ -55,21 +55,24 @@ Start-Sleep -Seconds 2
 # ---------------------- Auto Interface Selection -------------
 Write-Host "`n[2] Selecting correct network interface..." -ForegroundColor Cyan
 
-if ($BrokerIP -eq "127.0.0.1") {
-    # All services on one PC → Loopback
-    $Interface = "Npcap Loopback Adapter"
-    Write-Host "Mode: Single Laptop (Localhost)" -ForegroundColor Green
-    Write-Host "Selected Interface: LOOPBACK" -ForegroundColor Green
-} else {
-    # Multi-laptop network → Wi-Fi
-    $Interface = "Wi-Fi"
-    Write-Host "Mode: Multi-Laptop (LAN)" -ForegroundColor Green
-    Write-Host "Selected Interface: WIFI" -ForegroundColor Green
-}
+# if ($BrokerIP -eq "127.0.0.1") {
+#     # All services on one PC → Loopback
+#     $Interface = "Npcap Loopback Adapter"
+#     Write-Host "Mode: Single Laptop (Localhost)" -ForegroundColor Green
+#     Write-Host "Selected Interface: LOOPBACK" -ForegroundColor Green
+# } else {
+#     # Multi-laptop network → Wi-Fi
+#     $Interface = "Wi-Fi"
+#     Write-Host "Mode: Multi-Laptop (LAN)" -ForegroundColor Green
+#     Write-Host "Selected Interface: WIFI" -ForegroundColor Green
+# }
+$Interface = "Ethernet"
 
 # ------------------- Filter (host only) ----------------------
 # $Filter = "(host $BrokerIP or host $Client1 or host $Client2 or host $Attacker)"
-$Filter = "(host 192.168.0.100 or host 192.168.0.101)"
+# $Filter = "(host 192.168.0.102 or host 192.168.0.103)"
+$Filter = "(host 10.0.0.1 or host 10.0.0.2)"
+
 
 Write-Host "`nUsing Filter: " -ForegroundColor Cyan
 Write-Host $Filter -ForegroundColor Yellow

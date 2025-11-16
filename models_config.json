@@ -2,7 +2,7 @@
   "packet": {
     "enabled": true,
     "model_path": "model_outputs/packet/decision_tree/model_dt.joblib",
-    "meta_path": "model_outputs/packet/decision_tree/packet_metadata.json",
+    "meta_path": "model_outputs/packet/decision_tree/train_metadata.json",
     "feature_level": "packet"
   },
   "uniflow": {

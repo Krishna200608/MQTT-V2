@@ -18,7 +18,9 @@ import sys
 import joblib
 import numpy as np
 import pandas as pd
-from scapy.all import rdpcap, IP, TCP, UDP, Raw
+from scapy.all import rdpcap
+from scapy.layers.inet import IP, TCP, UDP
+from scapy.packet import Raw
 
 RUNNING = True
 def handle_signal(sig, frame):

@@ -99,7 +99,7 @@ Write-Host "`nFilter Applied: $Filter" -ForegroundColor Yellow
 # ---------------------- Start Tshark -------------------------
 Write-Host "`n[3] Starting rotating capture..." -ForegroundColor Green
 
-$CaptureCmd = "tshark -i `"$Interface`" -b duration:30 -w `"$PcapDir\capture.pcap`" -f `"$Filter`""
+$CaptureCmd = "tshark -i `"$Interface`" -b duration:5 -w `"$PcapDir\capture.pcap`" -f `"$Filter`""
 Start-Process "cmd.exe" -ArgumentList "/k $CaptureCmd"
 Start-Sleep -Seconds 1
 

@@ -17,7 +17,7 @@ from scapy.layers.l2 import ARP
 from scapy.packet import Raw
 
 
-PCAP_FILE = "capture.pcap"
+PCAP_FILE = "capture_with_packet_also.pcap"
 OUT_CSV = "capture_packets.csv"
 
 def decode_tcp_flags(pkt):

@@ -4,9 +4,9 @@ MQTT V2
 │   ├── mqtt_bruteforce.py
 │   ├── passwords.txt
 │   ├── run_full_attacks.ps1
-│   ├── scan_A.bat
-│   ├── scan_sU.bat
-│   ├── ssh_bruteforce_nmap.bat
+│   ├── scan_A.ps1
+│   ├── scan_sU.ps1
+│   ├── ssh_bruteforce_nmap.ps1
 │   └── users.txt
 ├── clients
 │   ├── iot_messages.csv
@@ -18,7 +18,9 @@ MQTT V2
 ├── commands
 │   ├── ids_summary.csv
 │   ├── logs
-│   │   └── 2025-11-15
+│   │   ├── 2025-11-15
+│   │   │   └── ids_alerts.log
+│   │   └── 2025-11-16
 │   │       └── ids_alerts.log
 │   ├── start_broker_env.ps1
 │   └── stop_broker_env.ps1
@@ -63,12 +65,18 @@ MQTT V2
 ├── debug
 │   ├── 1.md
 │   ├── analyze_pcaps_py
-│   └── image.png
+│   ├── capture.pcap
+│   ├── capture_packets.csv
+│   ├── image.png
+│   ├── pcap_analysis_summary.json
+│   └── pcap_to_csv.py
 ├── helper
 │   ├── addresse_commands.md
 │   ├── biflow.md
 │   └── uniflow.md
 ├── live_scripts
+│   ├── extractor.py
+│   ├── heuristics.py
 │   ├── live_ids.py
 │   └── live_ids_dashboard.py
 ├── model_outputs
@@ -105,13 +113,16 @@ MQTT V2
 │           ├── model_rf.joblib
 │           └── train_metadata.json
 ├── pcap_files
-│   ├── capture_00001_20251116115001.pcap
-│   ├── capture_00002_20251116115006.pcap
-│   ├── capture_00003_20251116115011.pcap
-│   ├── capture_00004_20251116115016.pcap
-│   ├── capture_00005_20251116115021.pcap
-│   ├── capture_00006_20251116115027.pcap
-│   └── capture_00007_20251116115032.pcap
+│   ├── capture_00001_20251116201015.pcap
+│   ├── capture_00002_20251116201045.pcap
+│   ├── capture_00003_20251116201115.pcap
+│   ├── capture_00004_20251116201145.pcap
+│   ├── capture_00005_20251116201215.pcap
+│   ├── capture_00006_20251116201245.pcap
+│   ├── capture_00007_20251116201316.pcap
+│   ├── capture_00008_20251116201346.pcap
+│   └── capture_00009_20251116201416.pcap
+├── pcap_files.zip
 ├── print_structure.py
 ├── README.md
 ├── requirements.txt

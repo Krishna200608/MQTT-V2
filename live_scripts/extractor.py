@@ -13,10 +13,25 @@ from pathlib import Path
 import json, os
 
 def safe_stats(arr):
-    if not arr:
+    if arr is None:
         return 0.0, 0.0, 0.0, 0.0
+
+    # Handle NumPy arrays and lists safely
+    try:
+        if len(arr) == 0:
+            return 0.0, 0.0, 0.0, 0.0
+    except Exception:
+        return 0.0, 0.0, 0.0, 0.0
+
     a = np.array(arr, dtype=float)
-    return float(a.mean()), float(a.std(ddof=0)), float(a.min()), float(a.max())
+
+    return (
+        float(a.mean()),
+        float(a.std(ddof=0)),
+        float(a.min()),
+        float(a.max()),
+    )
+
 
 def _load_allowed_ips():
     try:
@@ -210,8 +225,8 @@ def extract_biflow_29(pcap_path):
         }
 
         meta = {
-            "src": str(s),
-            "dst": str(d),
+            "src": str(src),
+            "dst": str(dst),
             "sport": int(sport),
             "dport": int(dport),
             "proto": int(proto),
@@ -240,7 +255,13 @@ def safe_compute_iat_stats(times_sorted):
     if not times_sorted or len(times_sorted) < 2:
         return 0.0, 0.0, 0.0, 0.0
     iats = np.diff(np.array(times_sorted, dtype=float))
-    return float(iats.mean()), float(iats.std(ddof=0)), float(iats.min()), float(iats.max())
+    return (
+        float(iats.mean()),
+        float(iats.std(ddof=0)),
+        float(iats.min()),
+        float(iats.max()),
+    )
+
 
 
 def biflow_to_uniflow_rows(biflow_rows, biflow_meta, uniflow_feature_names):

@@ -1,4 +1,4 @@
-# extractor.py
+# extractor.py (patched)
 """
 Biflow and packet extractors.
 
@@ -12,17 +12,49 @@ Biflow and packet extractors.
 from scapy.all import rdpcap
 from scapy.layers.inet import IP, TCP, UDP
 from scapy.packet import Raw
-# scapy MQTT is installed (you confirmed YES)
 from scapy.contrib.mqtt import MQTT
 
 import numpy as np
 from collections import defaultdict
+from pathlib import Path
+import json
+import os
 
 def safe_stats_from_array(arr):
     if arr is None or len(arr) == 0:
         return 0.0, 0.0, 0.0, 0.0
     a = np.array(arr, dtype=float)
     return float(np.mean(a)), float(np.std(a, ddof=0)), float(np.min(a)), float(np.max(a))
+
+
+# Load allowed IPs (broker + attacker) from configs/network_config.json if available.
+def _load_allowed_ips():
+    try:
+        here = Path(__file__).resolve().parent.parent
+        conf_path = here / "configs" / "network_config.json"
+        if conf_path.exists():
+            cfg = json.loads(conf_path.read_text(encoding="utf-8"))
+            allowed = set()
+            for k in ("broker_ip", "attacker_ip"):
+                v = cfg.get(k)
+                if v:
+                    allowed.add(str(v))
+            # also include client ips if present (optional)
+            for k in ("client1_ip", "client2_ip"):
+                v = cfg.get(k)
+                if v:
+                    allowed.add(str(v))
+            return allowed
+    except Exception:
+        pass
+    return set()
+
+ALLOWED_IPS = _load_allowed_ips()  # empty set means "no filter"
+
+def _ip_allowed(src, dst):
+    if not ALLOWED_IPS:
+        return True
+    return (str(src) in ALLOWED_IPS) or (str(dst) in ALLOWED_IPS)
 
 
 def extract_biflow_29(pcap_path):
@@ -49,6 +81,10 @@ def extract_biflow_29(pcap_path):
         if not pkt.haslayer(IP):
             continue
         ip = pkt[IP]
+
+        # Defensive filtering: only handle packets involving allowed IPs (if configured)
+        if not _ip_allowed(ip.src, ip.dst):
+            continue
 
         proto = None
         sport = 0
@@ -119,17 +155,14 @@ def extract_biflow_29(pcap_path):
         try:
             if pkt.haslayer(MQTT):
                 m = pkt[MQTT]
-                # scapy's MQTT sometimes exposes .type
                 mtype = getattr(m, "type", None) or getattr(m, "msgtype", None)
                 u["mqtt_msgs"] += 1
                 try:
                     if mtype is not None and int(mtype) == 1:
                         u["mqtt_connects"] += 1
                 except Exception:
-                    # if mtype not parseable, ignore
                     pass
         except Exception:
-            # be resilient: ignore mqtt parse errors
             pass
 
     # Pair into biflows
@@ -407,6 +440,11 @@ def extract_packet_level(pcap_path, packet_feature_names, broker_ip=None, broker
         if not pkt.haslayer(IP):
             continue
         ip = pkt[IP]
+
+        # Defensive IP filter
+        if not _ip_allowed(ip.src, ip.dst):
+            continue
+
         proto = None
         sport = dport = 0
         tcp_flags = 0

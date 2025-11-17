@@ -56,52 +56,53 @@ Start-Sleep -Seconds 2
 
 # ---------------------- Network Interface --------------------
 Write-Host "`n[2] Selecting correct network interface..." -ForegroundColor Cyan
-# Auto-detect NIC that carries attacker traffic
-    # Write-Host "`n[2] Auto-detecting correct network interface..." -ForegroundColor Cyan
 
-    # $AttackerIP = $Attacker
+# Attempt to auto-detect NIC that carries attacker traffic via tshark -D and short capture probe
+$DetectedNIC = $null
+try {
+    $Interfaces = & tshark -D 2>&1
+    foreach ($line in $Interfaces) {
+        if ($line -match '^\s*(\d+)\.\s+(.*)$') {
+            $idx = $matches[1]
+            $name = $matches[2]
+            Write-Host ("Testing NIC {0}: {1}" -f $idx, $name) -ForegroundColor Yellow
+            # Probe capture for 2 seconds to see if attacker IP appears
+            $probe = & tshark -i $idx -a duration:2 -f ("host {0}" -f $Attacker) 2>&1
+            if ($probe -match "Captured [1-9]") {
+                Write-Host ">>> MATCH FOUND: $idx ($name)" -ForegroundColor Green
+                $DetectedNIC = $idx
+                break
+            }
+        }
+    }
+} catch {
+    Write-Host "[WARN] Could not enumerate interfaces via tshark -D. Falling back to configured Interface." -ForegroundColor Yellow
+}
 
-    # $Interfaces = @(tshark -D)
-
-    # $DetectedNIC = $null
-
-    # foreach ($line in $Interfaces) {
-    #     if ($line -match '^\s*(\d+)\.\s+(.*)$') {
-    #         $idx = $matches[1]
-    #         $name = $matches[2]
-
-    #         Write-Host ("Testing NIC {0}: {1}" -f $idx, $name) -ForegroundColor Yellow
-
-    #         $out = tshark -i $idx -a duration:3 -f "host $AttackerIP" 2>&1
-
-    #         if ($out -match "Captured [1-9]") {
-    #             Write-Host ">>> MATCH FOUND: $idx ($name)" -ForegroundColor Green
-    #             $DetectedNIC = $idx
-    #             break
-    #         }
-    #     }
-    # }
-
-    # if ($DetectedNIC -eq $null) {
-    #     Write-Host "ERROR: No NIC detected with attacker traffic!" -ForegroundColor Red
-    #     pause
-    #     exit
-    # }
-
-# $Interface = $DetectedNIC
-$Interface = "Wi-Fi" || "4"
-Write-Host "Using NIC index: $Interface" -ForegroundColor Green
+if ($DetectedNIC -ne $null) {
+    $Interface = $DetectedNIC
+    Write-Host "Using detected NIC index: $Interface" -ForegroundColor Green
+} else {
+    # Fallback: allow user to use friendly name or default "Wi-Fi"
+    if (-not $Interface) {
+        $Interface = "Wi-Fi"
+    }
+    Write-Host "Using NIC: $Interface (auto-detection failed or not available)" -ForegroundColor Yellow
+}
 
 # ---------------------- Tshark Filter ------------------------
-$Filter = "tcp or udp or icmp"
+# Strict capture filter: only traffic involving broker or attacker + basic protocols
+$Filter = ("(host {0} or host {1}) and (tcp or udp or icmp)" -f $BrokerIP, $Attacker)
 Write-Host "`nFilter Applied: $Filter" -ForegroundColor Yellow
 
 # ---------------------- Start Tshark -------------------------
 Write-Host "`n[3] Starting rotating capture..." -ForegroundColor Green
 
+# rotate every 5 seconds, write to rotating capture.pcap files inside pcap_files
 $CaptureCmd = "tshark -i `"$Interface`" -b duration:5 -w `"$PcapDir\capture.pcap`" -f `"$Filter`""
 Start-Process "cmd.exe" -ArgumentList "/k $CaptureCmd"
 Start-Sleep -Seconds 1
+
 
 # ---------------------- Start Live IDS -----------------------
 Write-Host "`n[4] Starting Live IDS..." -ForegroundColor Green

@@ -68,7 +68,7 @@ def load_models(models_cfg_path):
     return active_models
 
 def write_alert(logf, entry):
-    logf.write(json.dumps(entry) + "\\n")
+    logf.write(json.dumps(entry) + "\n")
     logf.flush()
 
 def main():
@@ -103,7 +103,7 @@ def main():
     log_dir = Path("logs") / today
     log_dir.mkdir(parents=True, exist_ok=True)
     alert_log_path = log_dir / "ids_alerts.log"
-    logf = open(alert_log_path, "a")
+    logf = open(alert_log_path, "a", encoding="utf-8", newline="\n")
     print(f"[INFO] Logging alerts to: {alert_log_path}")
 
     pcap_dir = Path(args.pcap_dir)
@@ -233,9 +233,9 @@ def main():
                                 write_alert(logf, entry)
 
             # summary
-            with open(args.csv_out, "a") as f:
+            with open(args.csv_out, "a", encoding="utf-8", newline="") as f:
                 status = "ATTACK" if attack_count > 0 else "NO_ATTACK"
-                f.write(f"{time.time()},{p.name},{status},{attack_count}\\n")
+                f.write(f"{time.time()},{p.name},{status},{attack_count}\n")
 
             seen.add(p.name)
 

@@ -89,7 +89,7 @@ Write-Host "`n[2] Selecting correct network interface..." -ForegroundColor Cyan
     # }
 
 # $Interface = $DetectedNIC
-$Interface = "Ethernet"
+$Interface = "Wi-Fi" || "4"
 Write-Host "Using NIC index: $Interface" -ForegroundColor Green
 
 # ---------------------- Tshark Filter ------------------------

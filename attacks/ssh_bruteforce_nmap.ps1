@@ -75,7 +75,8 @@ foreach ($Port in $MatchedPorts) {
 
     Write-Host "`n[SSH Bruteforce] Running nmap ssh-brute on port $Port ..." -ForegroundColor Yellow
 
-    nmap -p $Port --script ssh-brute `
+    nmap -p 22 `
+        --script ssh-brute `
         --script-args "userdb=$USERS,passdb=$PASSWORDS" `
         $TARGET
 }

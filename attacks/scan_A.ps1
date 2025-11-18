@@ -21,6 +21,7 @@ Write-Host "[SCAN] Running Nmap Aggressive Scan (-A)..." -ForegroundColor Yellow
 # ------------------------------------------------------------
 # Execute scan
 # ------------------------------------------------------------
-nmap -A $TARGET
+# nmap -A $TARGET
+nmap -sS -p 1-1024 $TARGET
 
 Write-Host "`n[Done] Aggressive Scan completed." -ForegroundColor Green

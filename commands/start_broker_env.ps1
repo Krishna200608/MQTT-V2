@@ -93,8 +93,10 @@ $Interface = "Wi-Fi"
 # ---------------------- Tshark Filter ------------------------
 # Strict capture filter: only traffic involving broker or attacker + basic protocols
 # $Filter = "host $BrokerIP and host $Attacker and (tcp or udp or icmp)"
-$Filter = "host $BrokerIP and host $Attacker and (tcp or udp) and (port 1883 or port 22)"
+# $Filter = "host $BrokerIP and host $Attacker and (tcp or udp) and (port 1883 or port 22)"
+$Filter = "host $BrokerIP and host $Attacker and (tcp port 1883 or tcp port 22)"
 Write-Host "`nFilter Applied: $Filter" -ForegroundColor Yellow
+
 
 # ---------------------- Start Tshark -------------------------
 Write-Host "`n[3] Starting rotating capture..." -ForegroundColor Green

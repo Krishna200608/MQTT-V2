@@ -100,9 +100,14 @@ def detect_tcp_udp_scans(meta_rows,
         # ensure we can treat ports as sequences
         f_ports = set(m.get('f_ports_set', []) if m.get('f_ports_set') is not None else [])
         b_ports = set(m.get('b_ports_set', []) if m.get('b_ports_set') is not None else [])
+        
+        try:
+            proto = int(m.get('proto', 0))
+        except:
+            proto = 0
 
         # ---- TCP Aggressive Scan (Scan A)
-        if len(f_ports) >= tcp_port_threshold:
+        if proto == 6 and len(f_ports) >= tcp_port_threshold:
             alerts.append({
                 'type': 'scan_A',
                 'flow': {'src': m.get('src'), 'dst': m.get('dst')},
@@ -111,7 +116,7 @@ def detect_tcp_udp_scans(meta_rows,
                 'time': time.time(),
             })
 
-        if len(b_ports) >= tcp_port_threshold:
+        if proto == 6 and len(b_ports) >= tcp_port_threshold:
             alerts.append({
                 'type': 'scan_A',
                 'flow': {'src': m.get('dst'), 'dst': m.get('src')},
@@ -125,8 +130,11 @@ def detect_tcp_udp_scans(meta_rows,
             proto = int(m.get('proto', 0))
         except:
             proto = 0
+            
+        # Require at least 3 UDP packets to ensure true activity
+        udp_pkts = m.get("fwd_num_pkts", 0) + m.get("bwd_num_pkts", 0)  
 
-        if proto == 17:
+        if proto == 17 and udp_pkts >= 3:
             if len(f_ports) >= udp_port_threshold:
                 alerts.append({
                     'type': 'scan_sU',

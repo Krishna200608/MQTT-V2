@@ -21,6 +21,6 @@ Write-Host "[SCAN] Running Nmap UDP Scan (-sU)..." -ForegroundColor Yellow
 # ------------------------------------------------------------
 # Execute scan
 # ------------------------------------------------------------
-nmap -sU -p 1-2000 $TARGET
+nmap -sU --top-ports 100 --max-rate 200 $TARGET
 
 Write-Host "`n[Done] UDP Scan completed." -ForegroundColor Green

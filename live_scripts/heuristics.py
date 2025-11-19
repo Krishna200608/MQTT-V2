@@ -57,7 +57,10 @@ def detect_ssh_bruteforce(meta_rows,
     for m in meta_rows:
 
         # Only flows TARGETING port 22 on broker
-        if int(m.get('dport', 0)) != 22:
+        try:
+            if int(m.get('dport', 0)) != 22:
+                continue
+        except:
             continue
 
         # If attacker IP specified, ONLY accept attacker → broker flows
@@ -94,8 +97,9 @@ def detect_tcp_udp_scans(meta_rows,
     alerts = []
 
     for m in meta_rows:
-        f_ports = set(m.get('f_ports_set', set()))
-        b_ports = set(m.get('b_ports_set', set()))
+        # ensure we can treat ports as sequences
+        f_ports = set(m.get('f_ports_set', []) if m.get('f_ports_set') is not None else [])
+        b_ports = set(m.get('b_ports_set', []) if m.get('b_ports_set') is not None else [])
 
         # ---- TCP Aggressive Scan (Scan A)
         if len(f_ports) >= tcp_port_threshold:
@@ -117,7 +121,12 @@ def detect_tcp_udp_scans(meta_rows,
             })
 
         # ---- UDP Scan (Scan sU)
-        if int(m.get('proto', 0)) == 17:
+        try:
+            proto = int(m.get('proto', 0))
+        except:
+            proto = 0
+
+        if proto == 17:
             if len(f_ports) >= udp_port_threshold:
                 alerts.append({
                     'type': 'scan_sU',

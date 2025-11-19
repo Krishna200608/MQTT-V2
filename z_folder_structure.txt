@@ -3,6 +3,7 @@ MQTT V2
 ├── attacks
 │   ├── mqtt_bruteforce.py
 │   ├── passwords.txt
+│   ├── README.md
 │   ├── run_full_attacks.ps1
 │   ├── scan_A.ps1
 │   ├── scan_sU.ps1
@@ -13,6 +14,7 @@ MQTT V2
 │   ├── pi_publisher.py
 │   ├── pi_subscriber.py
 │   ├── README.md
+│   ├── run_clients_env.ps1
 │   ├── run_publisher.ps1
 │   └── run_subscriber.ps1
 ├── commands
@@ -22,7 +24,11 @@ MQTT V2
 │   │   │   └── ids_alerts.log
 │   │   ├── 2025-11-16
 │   │   │   └── ids_alerts.log
-│   │   └── 2025-11-17
+│   │   ├── 2025-11-17
+│   │   │   └── ids_alerts.log
+│   │   ├── 2025-11-18
+│   │   │   └── ids_alerts.log
+│   │   └── 2025-11-19
 │   │       └── ids_alerts.log
 │   ├── start_broker_env.ps1
 │   └── stop_broker_env.ps1
@@ -39,13 +45,18 @@ MQTT V2
 │   │   ├── biflow_scan_sU.csv
 │   │   └── biflow_sparta.csv
 │   ├── combined
-│   │   ├── biflow_test.csv
-│   │   ├── biflow_train.csv
-│   │   ├── packet_test.csv
-│   │   ├── packet_train.csv
-│   │   ├── split_metadata.json
-│   │   ├── uniflow_test.csv
-│   │   └── uniflow_train.csv
+│   │   ├── biflow
+│   │   │   ├── biflow_test.csv
+│   │   │   ├── biflow_train.csv
+│   │   │   └── split_metadata.json
+│   │   ├── packet
+│   │   │   ├── packet_test.csv
+│   │   │   ├── packet_train.csv
+│   │   │   └── split_metadata.json
+│   │   └── uniflow
+│   │       ├── split_metadata.json
+│   │       ├── uniflow_test.csv
+│   │       └── uniflow_train.csv
 │   ├── packet_features
 │   │   ├── mqtt_bruteforce.csv
 │   │   ├── normal.csv
@@ -66,7 +77,7 @@ MQTT V2
 │       └── uniflow_sparta.csv
 ├── debug
 │   ├── 1.md
-│   ├── analyze_pcaps_py
+│   ├── analyse_pcap.py
 │   ├── capture.pcap
 │   ├── capture1.pcap
 │   ├── capture_new.pcap
@@ -74,6 +85,7 @@ MQTT V2
 │   ├── capture_uni_bi_only.pcap
 │   ├── capture_with_packet_also.pcap
 │   ├── image.png
+│   ├── new_capture_wednesday_19.pcap
 │   └── pcap_to_csv.py
 ├── helper
 │   ├── addresse_commands.md
@@ -96,8 +108,11 @@ MQTT V2
 │   │       │   └── eval_summary.json
 │   │       ├── feature_names.json
 │   │       ├── model_rf.joblib
+│   │       ├── preprocessor.joblib
 │   │       └── train_metadata.json
+│   ├── combine_feature_names.py
 │   ├── combine_metadata.py
+│   ├── combined_feature_names.json
 │   ├── packet
 │   │   └── decision_tree
 │   │       ├── evaluation_results
@@ -107,6 +122,7 @@ MQTT V2
 │   │       │   └── eval_summary.json
 │   │       ├── feature_names.json
 │   │       ├── model_dt.joblib
+│   │       ├── preprocessor.joblib
 │   │       └── train_metadata.json
 │   └── uniflow
 │       └── random_forest
@@ -117,11 +133,15 @@ MQTT V2
 │           │   └── eval_summary.json
 │           ├── feature_names.json
 │           ├── model_rf.joblib
+│           ├── preprocessor.joblib
 │           └── train_metadata.json
 ├── pcap_files
-│   ├── capture_00001_20251117194558.pcap
-│   ├── capture_00002_20251117194603.pcap
-│   └── capture_00003_20251117194608.pcap
+│   ├── capture_00001_20251119152311.pcap
+│   ├── capture_00002_20251119152321.pcap
+│   ├── capture_00003_20251119152331.pcap
+│   ├── capture_00004_20251119152341.pcap
+│   ├── capture_00005_20251119152352.pcap
+│   ├── capture_00006_20251119152402.pcap
 ├── print_structure.py
 ├── README.md
 ├── requirements.txt
@@ -132,5 +152,6 @@ MQTT V2
 │   ├── prepare_combined_csv.py
 │   ├── print_packets.py
 │   ├── run_all.py
+│   ├── run_man.py
 │   └── train_model.py
 └── z_folder_structure.txt

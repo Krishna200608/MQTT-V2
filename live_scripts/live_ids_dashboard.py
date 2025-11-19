@@ -3,6 +3,7 @@
 Corrected Real-Time IDS Dashboard
 - Fixes probability field ("prob" instead of "probability")
 - Better table and alert formatting
+- Counts total alerts (entire day's file) rather than last N lines
 """
 
 import time, json, os
@@ -10,9 +11,6 @@ from pathlib import Path
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
-
-import time, os
-from pathlib import Path
 
 today = time.strftime("%Y-%m-%d")
 
@@ -24,21 +22,11 @@ if not ALERT_FILE.exists():
     console.print(f"[yellow]Warning: No alert log found at {ALERT_FILE}[/yellow]")
 
 
-LABEL_MAP = {
-    0: "normal",
-    1: "scan_A",
-    2: "scan_sU",
-    3: "sparta",
-    4: "mqtt_bruteforce"
-}
-
-
-
 def load_alerts(path):
     if not os.path.exists(path):
         return []
     with open(path, "r") as f:
-        lines = f.readlines()[-50:]
+        lines = f.readlines()  # read entire log
         alerts = []
         for l in lines:
             try:
@@ -65,7 +53,7 @@ def main():
 
         for a in alerts:
             raw_lbl = a.get("predicted_label", "unknown")
-            lbl = LABEL_MAP.get(raw_lbl, raw_lbl)   
+            lbl = raw_lbl  # predicted_label stored as string by live_ids
             if lbl in attack_counts:
                 attack_counts[lbl] += 1
             last_entry = a

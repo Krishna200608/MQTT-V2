@@ -43,7 +43,7 @@ function Run-SSHBruteforce {
 # -------------------------------------------------------------
 function Run-TCPScan {
     Write-Host "`n[TCP Scan] Running SYN scan on common ports..." -ForegroundColor Yellow
-    nmap -sS -p 1-1024 $TARGET
+    nmap -sS -p 1-65535 --max-rate 500 $TARGET
 }
 
 # -------------------------------------------------------------
@@ -51,7 +51,7 @@ function Run-TCPScan {
 # -------------------------------------------------------------
 function Run-UDPScan {
     Write-Host "`n[UDP Scan] Running top-50 UDP port scan..." -ForegroundColor Yellow
-    nmap -sU --top-ports 50 $TARGET
+    nmap -sU -p 1-2000 $TARGET
 }
 
 # -------------------------------------------------------------

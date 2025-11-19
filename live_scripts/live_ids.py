@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# live_ids.py (UPDATED FOR PREPROCESSOR SUPPORT)
+# live_ids.py (UPDATED FOR PREPROCESSOR SUPPORT + string labels)
 
 import argparse
 import json
@@ -23,6 +23,31 @@ def handle_signal(sig, frame):
 
 signal.signal(signal.SIGINT, handle_signal)
 signal.signal(signal.SIGTERM, handle_signal)
+
+INT_TO_LABEL = {
+    0: "normal",
+    1: "scan_A",
+    2: "scan_sU",
+    3: "sparta",
+    4: "mqtt_bruteforce"
+}
+
+# Colors for labels (ANSI)
+LABEL_COLORS = {
+    "normal": "\033[37m",             # white
+    "scan_A": "\033[91m",             # red
+    "scan_sU": "\033[95m",            # magenta
+    "sparta": "\033[93m",             # yellow
+    "mqtt_bruteforce": "\033[96m",    # cyan
+}
+
+RESET = "\033[0m"
+
+def colorize_label(lbl, enable=True):
+    if not enable:
+        return lbl
+    color = LABEL_COLORS.get(lbl, "\033[92m")  # green fallback
+    return f"{color}{lbl}{RESET}"
 
 
 # ===================================================================
@@ -76,10 +101,32 @@ def load_models(models_cfg_path):
 
     return active_models
 
+def json_safe(obj):
+    """Recursively convert sets and numpy types to JSON-safe objects."""
+    if isinstance(obj, dict):
+        return {k: json_safe(v) for k, v in obj.items()}
+
+    elif isinstance(obj, (list, tuple)):
+        return [json_safe(x) for x in obj]
+
+    elif isinstance(obj, set):
+        return [json_safe(x) for x in obj]     # convert set → list
+
+    elif isinstance(obj, np.integer):
+        return int(obj)
+
+    elif isinstance(obj, np.floating):
+        return float(obj)
+
+    else:
+        return obj
+
 
 def write_alert(logf, entry):
-    logf.write(json.dumps(entry) + "\n")
+    safe_entry = json_safe(entry)
+    logf.write(json.dumps(safe_entry) + "\n")
     logf.flush()
+
 
 
 
@@ -97,9 +144,12 @@ def main():
     parser.add_argument("--broker-only", action="store_true")
     parser.add_argument("--prob-threshold", type=float, default=0.75)
     parser.add_argument("--poll-interval", type=float, default=2.0)
+    parser.add_argument("--color-output", action="store_true",
+                    help="Display alert labels with colored tags in console output")
+
     args = parser.parse_args()
 
-    models_cfg_path = Path(args.models-config).resolve()
+    models_cfg_path = Path(args.models_config).resolve()
     if not models_cfg_path.exists():
         print("[FATAL] models_config.json missing.")
         sys.exit(1)
@@ -143,7 +193,7 @@ def main():
             # ========================
             heur_alerts = []
             heur_alerts.extend(detect_mqtt_bruteforce(biflow_meta, broker_ip=args.broker_ip, broker_port=args.broker_port))
-            heur_alerts.extend(detect_ssh_bruteforce(biflow_meta))
+            heur_alerts.extend(detect_ssh_bruteforce(biflow_meta, attacker_ip=args.broker_ip))
             heur_alerts.extend(detect_tcp_udp_scans(biflow_meta))
 
             for a in heur_alerts:
@@ -156,7 +206,9 @@ def main():
                     "prob": 1.0,
                     "meta": {k:v for k,v in a.items() if k not in ("flow","type")}
                 }
-                print("[HEUR ALERT]", entry)
+                colored = colorize_label(entry["predicted_label"], args.color_output)
+                print(f"[HEUR ALERT] {colored} {entry}")
+
                 write_alert(logf, entry)
 
             attack_count = len(heur_alerts)
@@ -184,18 +236,25 @@ def main():
                     probs = model.predict_proba(X_b)
 
                     for i, lbl in enumerate(preds):
-                        if lbl != 0:   # paper mapping: 0=normal
+                        if int(lbl) != 0:   # paper mapping: 0=normal
                             prob = float(max(probs[i]))
                             if prob >= args.prob_threshold:
+                                if isinstance(lbl, (int, np.integer)):
+                                    pred_label_str = INT_TO_LABEL.get(int(lbl), str(int(lbl)))
+                                else:
+                                    pred_label_str = str(lbl)
+
                                 entry = {
                                     "time": time.time(),
                                     "pcap": p.name,
                                     "model": "biflow",
                                     "flow": biflow_meta[i],
-                                    "predicted_label": lbl,
+                                    "predicted_label": pred_label_str,
                                     "prob": prob
                                 }
-                                print("[ALERT]", entry)
+                                colored = colorize_label(entry["predicted_label"], args.color_output)
+                                print(f"[HEUR ALERT] {colored} {entry}")
+
                                 write_alert(logf, entry)
                                 attack_count += 1
 
@@ -222,18 +281,25 @@ def main():
                     probs = model.predict_proba(X_u)
 
                     for i, lbl in enumerate(preds):
-                        if lbl != 0:
+                        if int(lbl) != 0:
                             prob = float(max(probs[i]))
                             if prob >= args.prob_threshold:
+                                if isinstance(lbl, (int, np.integer)):
+                                    pred_label_str = INT_TO_LABEL.get(int(lbl), str(int(lbl)))
+                                else:
+                                    pred_label_str = str(lbl)
+
                                 entry = {
                                     "time": time.time(),
                                     "pcap": p.name,
                                     "model": "uniflow",
                                     "flow": u_meta[i],
-                                    "predicted_label": lbl,
+                                    "predicted_label": pred_label_str,
                                     "prob": prob
                                 }
-                                print("[ALERT]", entry)
+                                colored = colorize_label(entry["predicted_label"], args.color_output)
+                                print(f"[HEUR ALERT] {colored} {entry}")
+
                                 write_alert(logf, entry)
                                 attack_count += 1
 
@@ -261,18 +327,25 @@ def main():
                         probs = model.predict_proba(X_p)
 
                         for i, lbl in enumerate(preds):
-                            if lbl != 0:
+                            if int(lbl) != 0:
                                 prob = float(max(probs[i]))
                                 if prob >= args.prob_threshold:
+                                    if isinstance(lbl, (int, np.integer)):
+                                        pred_label_str = INT_TO_LABEL.get(int(lbl), str(int(lbl)))
+                                    else:
+                                        pred_label_str = str(lbl)
+
                                     entry = {
                                         "time": time.time(),
                                         "pcap": p.name,
                                         "model": "packet",
                                         "flow": pkt_meta[i],
-                                        "predicted_label": lbl,
+                                        "predicted_label": pred_label_str,
                                         "prob": prob
                                     }
-                                    print("[ALERT]", entry)
+                                    colored = colorize_label(entry["predicted_label"], args.color_output)
+                                    print(f"[HEUR ALERT] {colored} {entry}")
+
                                     write_alert(logf, entry)
                                     attack_count += 1
 

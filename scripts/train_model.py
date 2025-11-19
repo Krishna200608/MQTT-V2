@@ -38,7 +38,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
+
 
 # -------------------------
 # Label mapping (paper)
@@ -68,7 +68,24 @@ def eta_formatter(elapsed, progress, total):
 
 
 # -------------------------
-# Data loader (uses combined/<mode>/... structure)
+# Pred label encoder (CRITICAL FIX)
+# -------------------------
+def encode_pred_labels(preds):
+    """Convert predictions to integer labels."""
+    out = []
+    for p in preds:
+        if isinstance(p, str):
+            out.append(LABEL_TO_INT.get(p, -1))
+        else:
+            try:
+                out.append(int(p))
+            except:
+                out.append(-1)
+    return np.array(out, dtype=int)
+
+
+# -------------------------
+# Data loader
 # -------------------------
 def load_dataset(data_dir, feature_level, test_split, seed):
     data_dir = Path(data_dir) / feature_level
@@ -89,36 +106,22 @@ def load_dataset(data_dir, feature_level, test_split, seed):
 
 
 # -------------------------
-# Preprocessing (paper-inspired)
+# Preprocessor
 # -------------------------
 def build_preprocessor(df, mode):
-    """
-    Build a ColumnTransformer preprocessor:
-      - For packet mode, if 'protocol' or 'proto' exists, OneHotEncode it.
-      - Drop IP-like and timestamp columns as in classification.py.
-    Returns: preprocessor (ColumnTransformer) and list of final feature names (after fit)
-    """
-
-    # Normalize column names
     df = df.copy()
     df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
 
-    # Identify candidate categorical protocol column
     proto_candidates = [c for c in df.columns if c in ("protocol", "proto")]
     proto_col = proto_candidates[0] if proto_candidates else None
 
-    # Determine columns to drop as in classification.py
     if mode == "packet":
-        # classification.py dropped 'timestamp','src_ip','dst_ip' and mqtt* columns for packet
         drop_cols = [c for c in ["timestamp", "src_ip", "dst_ip", "ip_src", "ip_dst"] if c in df.columns]
-        # Remove columns that start with 'mqtt' (if present)
         mqtt_cols = [c for c in df.columns if c.startswith("mqtt")]
         drop_cols += mqtt_cols
-    else:  # uniflow or biflow
-        # drop proto/ip src/dst
+    else:
         drop_cols = [c for c in ["proto", "protocol", "ip_src", "ip_dst"] if c in df.columns]
 
-    # Numeric feature candidates: all numeric columns except drop_cols and label/is_attack
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
     numeric_cols = [c for c in numeric_cols if c not in drop_cols + ["label", "is_attack"]]
 
@@ -126,28 +129,27 @@ def build_preprocessor(df, mode):
     final_feature_names = []
 
     if mode == "packet" and proto_col is not None and proto_col in df.columns:
-        # One-hot encode protocol column (paper used OneHotEncoder for protocol)
         ohe = OneHotEncoder(handle_unknown="ignore", sparse=False)
         transformers.append(("proto_ohe", ohe, [proto_col]))
-        # Keep numeric columns as passthrough
         if numeric_cols:
             transformers.append(("num_passthrough", "passthrough", numeric_cols))
-        preprocessor = ColumnTransformer(transformers, remainder="drop", sparse_threshold=0)
+        preprocessor = ColumnTransformer(transformers, remainder="drop")
 
-        # Fit-transform to extract output feature names
         X_dummy = preprocessor.fit_transform(df.fillna(-1))
         try:
-            # sklearn >=1.0 feature name extraction
-            ohe_names = preprocessor.named_transformers_["proto_ohe"].get_feature_names_out([proto_col]).tolist()
-        except Exception:
-            # fallback
+            ohe_names = preprocessor.named_transformers_["proto_ohe"]\
+                        .get_feature_names_out([proto_col]).tolist()
+        except:
             ohe = preprocessor.named_transformers_["proto_ohe"]
             ohe_names = [f"{proto_col}_{i}" for i in range(ohe.categories_[0].shape[0])]
 
-        final_feature_names = ohe_names + (numeric_cols if numeric_cols else [])
+        final_feature_names = ohe_names + numeric_cols
+
     else:
-        # No protocol OHE — use numeric columns only
-        preprocessor = ColumnTransformer([("num_passthrough", "passthrough", numeric_cols)], remainder="drop", sparse_threshold=0)
+        preprocessor = ColumnTransformer(
+            [("num_passthrough", "passthrough", numeric_cols)],
+            remainder="drop"
+        )
         final_feature_names = numeric_cols
 
     return preprocessor, final_feature_names, drop_cols, proto_col
@@ -157,45 +159,35 @@ def build_preprocessor(df, mode):
 # Label encoding
 # -------------------------
 def encode_labels(y_series):
-    """
-    If labels are strings like 'normal', 'scan_a', map to ints using LABEL_TO_INT.
-    If already numeric, try to keep them (but enforce mapping if they match).
-    """
-    if y_series.dtype == object or y_series.dtype == "string":
+    if y_series.dtype in (object, "string"):
         y_mapped = y_series.astype(str).apply(lambda x: LABEL_TO_INT.get(x, x))
-        # if mapping returned strings (unknown), try lower-case check
         try:
-            y = y_mapped.astype(int).values
-        except Exception:
-            # fallback: attempt normalize lower-case tokens like in prepare script
-            y = y_series.astype(str).str.lower().map({
+            return y_mapped.astype(int).values
+        except:
+            return y_series.astype(str).str.lower().map({
                 "normal": 0, "scan_a": 1, "scan_su": 2, "sparta": 3, "mqtt_bruteforce": 4
             }).fillna(-1).astype(int).values
-    else:
-        y = y_series.astype(int).values
-    return y
+    return y_series.astype(int).values
 
 
 # -------------------------
-# Build model (paper hyperparams)
+# Build model
 # -------------------------
 def build_model_for_mode(mode, seed):
     if mode == "packet":
-        # Decision Tree with entropy (paper)
         return DecisionTreeClassifier(criterion="entropy", random_state=seed)
     else:
-        # Random Forest as in paper: n_estimators=10, criterion='entropy'
         return RandomForestClassifier(n_estimators=10, criterion="entropy", random_state=seed)
 
 
 # -------------------------
-# Main training routine
+# MAIN
 # -------------------------
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-dir", required=True)         # expects combined/ directory
+    parser.add_argument("--data-dir", required=True)
     parser.add_argument("--feature-level", choices=["packet", "uniflow", "biflow"], required=True)
-    parser.add_argument("--model-type", choices=["dt", "rf"], required=True)  # kept for compatibility
+    parser.add_argument("--model-type", choices=["dt", "rf"], required=True)
     parser.add_argument("--out-dir", required=True)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--cv-folds", type=int, default=5)
@@ -204,128 +196,101 @@ def main():
 
     os.makedirs(args.out_dir, exist_ok=True)
 
-    start_time = time.time()
+    # Load dataset
     df_train, df_test, used_files = load_dataset(args.data_dir, args.feature_level, args.test_split, args.seed)
-    tqdm.write(f"⏳ Dataset loaded in {time.time() - start_time:.2f}s")
-
-    # Prepare labels and features
-    # Keep original column names standardized
     df_train.columns = [c.strip().lower().replace(" ", "_") for c in df_train.columns]
-    df_test.columns = [c.strip().lower().replace(" ", "_") for c in df_test.columns]
+    df_test.columns  = [c.strip().lower().replace(" ", "_") for c in df_test.columns]
 
-    # Extract labels (prefer 'label' column); if not present fallback to 'is_attack'
+    # Labels
     if "label" in df_train.columns:
         y_train_raw = df_train["label"]
-        y_test_raw = df_test["label"]
+        y_test_raw  = df_test["label"]
     else:
         y_train_raw = df_train["is_attack"]
-        y_test_raw = df_test["is_attack"]
+        y_test_raw  = df_test["is_attack"]
 
-    # Build preprocessor using training set
+    # Preprocessor
     preprocessor, feature_names_pre, drop_cols, proto_col = build_preprocessor(df_train, args.feature_level)
+    df_train_proc = df_train.drop(columns=drop_cols, errors="ignore").fillna(-1)
+    df_test_proc  = df_test.drop(columns=drop_cols, errors="ignore").fillna(-1)
 
-    # Drop columns from df_train/df_test as defined
-    df_train_proc = df_train.drop(columns=[c for c in drop_cols if c in df_train.columns], errors="ignore").fillna(-1)
-    df_test_proc = df_test.drop(columns=[c for c in drop_cols if c in df_test.columns], errors="ignore").fillna(-1)
-
-    # Fit preprocessor on training data and transform both
     X_train = preprocessor.fit_transform(df_train_proc)
-    X_test = preprocessor.transform(df_test_proc)
+    X_test  = preprocessor.transform(df_test_proc)
 
-    # Get transformed feature names
+    # Feature names
     try:
-        # sklearn >=1.0
         transformed_names = []
-        if isinstance(preprocessor, ColumnTransformer):
-            for name, transformer, cols in preprocessor.transformers_:
-                if transformer == "passthrough":
-                    # cols is a list of column names
-                    transformed_names.extend(cols)
-                else:
-                    # transformer is an estimator with get_feature_names_out if exists
-                    try:
-                        fn = transformer.get_feature_names_out(cols)
-                        transformed_names.extend(fn.tolist())
-                    except Exception:
-                        # fallback: create synthetic names
-                        if hasattr(transformer, "categories_"):
-                            cats = transformer.categories_[0]
-                            transformed_names.extend([f"{cols[0]}_{c}" for c in cats])
-                        else:
-                            transformed_names.extend([f"{cols[0]}_{i}" for i in range(X_train.shape[1])])
-        else:
-            transformed_names = feature_names_pre
-    except Exception:
+        for name, transformer, cols in preprocessor.transformers_:
+            if transformer == "passthrough":
+                transformed_names.extend(cols)
+            else:
+                try:
+                    transformed_names.extend(transformer.get_feature_names_out(cols).tolist())
+                except:
+                    if hasattr(transformer, "categories_"):
+                        cats = transformer.categories_[0]
+                        transformed_names.extend([f"{cols[0]}_{c}" for c in cats])
+                    else:
+                        transformed_names.extend([f"{cols[0]}_{i}" for i in range(X_train.shape[1])])
+    except:
         transformed_names = feature_names_pre
 
-    # Ensure X_train / X_test are numpy arrays
+    # NumPy arrays
     X_train = np.asarray(X_train)
-    X_test = np.asarray(X_test)
+    X_test  = np.asarray(X_test)
 
-    # Encode labels to integers using paper mapping
+    # Encode labels
     y_train = encode_labels(pd.Series(y_train_raw))
-    y_test = encode_labels(pd.Series(y_test_raw))
+    y_test  = encode_labels(pd.Series(y_test_raw))
 
-    # -------------------------------
-    # Build model (paper hyperparameters)
-    # -------------------------------
+    # Model
     model = build_model_for_mode(args.feature_level, args.seed)
     tqdm.write(f"🤖 Model: {args.feature_level.upper()} | {model.__class__.__name__}")
 
-    # -------------------------------
-    # Stratified K-Fold CV (paper style)
-    # -------------------------------
+    # CV
     skf = StratifiedKFold(n_splits=args.cv_folds, shuffle=True, random_state=args.seed)
-    folds = list(skf.split(X_train, y_train))
-
     y_pred_cv = np.empty_like(y_train, dtype=object)
-    cv_start = time.time()
+
     pbar = tqdm(total=args.cv_folds, desc="CV Progress", ncols=80)
+    cv_start = time.time()
 
-    for i, (tr_idx, val_idx) in enumerate(folds, start=1):
-        clf_fold = build_model_for_mode(args.feature_level, args.seed + i)
-        clf_fold.fit(X_train[tr_idx], y_train[tr_idx])
+    for i, (tr_idx, val_idx) in enumerate(skf.split(X_train, y_train), start=1):
+        fold_model = build_model_for_mode(args.feature_level, args.seed + i)
+        fold_model.fit(X_train[tr_idx], y_train[tr_idx])
 
-        y_pred_cv[val_idx] = clf_fold.predict(X_train[val_idx])
+        fold_preds = fold_model.predict(X_train[val_idx])
+        fold_preds = encode_pred_labels(fold_preds)  # FIXED
+        y_pred_cv[val_idx] = fold_preds
 
-        elapsed = time.time() - cv_start
-        pbar.set_postfix({"ETA": eta_formatter(elapsed, i, args.cv_folds)})
+        pbar.set_postfix({"ETA": eta_formatter(time.time() - cv_start, i, args.cv_folds)})
         pbar.update(1)
 
     pbar.close()
 
-    # -------------------------------
-    # Final training on full train set
-    # -------------------------------
-    with tqdm(total=1, desc="Final training", ncols=80) as bar:
-        model.fit(X_train, y_train)
-        bar.update(1)
+    # Final training
+    model.fit(X_train, y_train)
 
-    # -------------------------------
-    # Evaluate on test set
-    # -------------------------------
-    with tqdm(total=1, desc="Evaluating", ncols=80) as bar:
-        y_test_pred = model.predict(X_test)
-        bar.update(1)
+    # Test evaluation
+    y_test_pred = model.predict(X_test)
+    y_test_pred = encode_pred_labels(y_test_pred)  # FIXED
 
-    report_train = classification_report(y_train, y_pred_cv, output_dict=True, zero_division=0)
-    report_test = classification_report(y_test, y_test_pred, output_dict=True, zero_division=0)
-    cm = confusion_matrix(y_test, y_test_pred)
+    report_train = classification_report(y_train, encode_pred_labels(y_pred_cv),
+                                         output_dict=True, zero_division=0)
+    report_test  = classification_report(y_test, y_test_pred,
+                                         output_dict=True, zero_division=0)
+    cm  = confusion_matrix(y_test, y_test_pred)
     acc = accuracy_score(y_test, y_test_pred)
 
-    # -------------------------------
-    # Save artifacts
-    # -------------------------------
+    # Save model
     model_path = Path(args.out_dir) / f"model_{args.model_type}.joblib"
     joblib.dump(model, model_path)
 
-    # Save preprocessor for real-time usage
-    preprocessor_path = Path(args.out_dir) / "preprocessor.joblib"
-    joblib.dump(preprocessor, preprocessor_path)
+    # Save preprocessor
+    preproc_path = Path(args.out_dir) / "preprocessor.joblib"
+    joblib.dump(preprocessor, preproc_path)
 
-    # Save feature names (transformed)
-    fn_path = Path(args.out_dir) / "feature_names.json"
-    with open(fn_path, "w") as f:
+    # Save feature names
+    with open(Path(args.out_dir) / "feature_names.json", "w") as f:
         json.dump({"feature_names": transformed_names}, f, indent=2)
 
     # Save metadata
@@ -333,7 +298,7 @@ def main():
         "feature_level": args.feature_level,
         "model_type": args.model_type,
         "model_path": str(model_path),
-        "preprocessor_path": str(preprocessor_path),
+        "preprocessor_path": str(preproc_path),
         "used_files": {str(f): sha256_file(f) for f in used_files},
         "feature_names": transformed_names,
         "label_map": LABEL_TO_INT,
@@ -349,7 +314,7 @@ def main():
 
     tqdm.write("\n🎉 TRAINING COMPLETE 🎉")
     tqdm.write(f"Model saved at: {model_path}")
-    tqdm.write(f"Preprocessor saved at: {preprocessor_path}")
+    tqdm.write(f"Preprocessor saved at: {preproc_path}")
     tqdm.write(f"Accuracy: {acc:.4f}")
 
 

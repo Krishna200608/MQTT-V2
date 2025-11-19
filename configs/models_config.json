@@ -3,18 +3,21 @@
     "enabled": true,
     "model_path": "model_outputs/packet/decision_tree/model_dt.joblib",
     "meta_path": "model_outputs/packet/decision_tree/train_metadata.json",
+    "preproc_path": "model_outputs/packet/decision_tree/preprocessor.joblib",
     "feature_level": "packet"
   },
   "uniflow": {
     "enabled": true,
     "model_path": "model_outputs/uniflow/random_forest/model_rf.joblib",
     "meta_path": "model_outputs/uniflow/random_forest/train_metadata.json",
+    "preproc_path": "model_outputs/uniflow/random_forest/preprocessor.joblib",
     "feature_level": "uniflow"
   },
   "biflow": {
     "enabled": true,
     "model_path": "model_outputs/biflow/random_forest/model_rf.joblib",
     "meta_path": "model_outputs/biflow/random_forest/train_metadata.json",
+    "preproc_path": "model_outputs/biflow/random_forest/preprocessor.joblib",
     "feature_level": "biflow"
   }
 }

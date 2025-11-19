@@ -24,6 +24,13 @@ if not ALERT_FILE.exists():
     console.print(f"[yellow]Warning: No alert log found at {ALERT_FILE}[/yellow]")
 
 
+LABEL_MAP = {
+    0: "normal",
+    1: "scan_A",
+    2: "scan_sU",
+    3: "sparta",
+    4: "mqtt_bruteforce"
+}
 
 
 
@@ -57,7 +64,8 @@ def main():
         last_entry = None
 
         for a in alerts:
-            lbl = a.get("predicted_label", "unknown")
+            raw_lbl = a.get("predicted_label", "unknown")
+            lbl = LABEL_MAP.get(raw_lbl, raw_lbl)   
             if lbl in attack_counts:
                 attack_counts[lbl] += 1
             last_entry = a

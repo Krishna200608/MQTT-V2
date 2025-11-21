@@ -31,7 +31,7 @@ def load_test_csv(path):
         y = df["is_attack"].astype(int).values
         df = df.drop(columns=["is_attack"])
     else:
-        y = None
+        raise ValueError("No label column found in test CSV.")
 
     return df, y
 
@@ -58,6 +58,9 @@ def main():
 
     # Load test CSV raw
     X_raw, y_true = load_test_csv(args.test_csv)
+    
+    if y_true is None:
+        raise ValueError("Test CSV has no label column (label/is_attack missing).")
 
     # Force same column style before preprocessing
     X_raw = X_raw.fillna(-1)

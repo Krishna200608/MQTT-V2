@@ -66,6 +66,7 @@ $Interface = "Wi-Fi"
 $Filter = "host $BrokerIP and host $Attacker and (tcp or udp or icmp)"
 
 # $Filter = "host $BrokerIP and (tcp or udp or icmp)"
+# host 192.168.0.100 and host 192.168.0.101 and (tcp or udp or icmp)
 
 
 Write-Host "`nFilter Applied: $Filter" -ForegroundColor Yellow

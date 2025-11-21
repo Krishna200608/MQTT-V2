@@ -1,4 +1,4 @@
-# extractor.py (aligned with combined_feature_names.json)
+# extractor.py (hybrid MQTT parsing: scapy if available, raw-payload fallback)
 from scapy.all import rdpcap
 from scapy.layers.inet import IP, TCP, UDP
 from scapy.packet import Raw
@@ -10,28 +10,18 @@ except Exception:
 
 import numpy as np
 from pathlib import Path
-import json, os
+import json, os, struct
 
 def safe_stats(arr):
     if arr is None:
         return 0.0, 0.0, 0.0, 0.0
-
-    # Handle NumPy arrays and lists safely
     try:
         if len(arr) == 0:
             return 0.0, 0.0, 0.0, 0.0
     except Exception:
         return 0.0, 0.0, 0.0, 0.0
-
     a = np.array(arr, dtype=float)
-
-    return (
-        float(a.mean()),
-        float(a.std(ddof=0)),
-        float(a.min()),
-        float(a.max()),
-    )
-
+    return (float(a.mean()), float(a.std(ddof=0)), float(a.min()), float(a.max()))
 
 def _load_allowed_ips():
     try:
@@ -54,6 +44,85 @@ def _ip_ok(src,dst):
     if not ALLOWED_IPS:
         return True
     return (str(src) in ALLOWED_IPS) or (str(dst) in ALLOWED_IPS)
+
+# -------- MQTT raw parsing helpers (fallback when scapy MQTT layer not available) --------
+def _read_remaining_length(b, start=1):
+    """
+    Parse MQTT Remaining Length field (variable length, starting at b[start]).
+    Returns (value, num_bytes_used)
+    """
+    mul = 1
+    val = 0
+    idx = start
+    while idx < len(b):
+        encoded = b[idx]
+        val += (encoded & 0x7F) * mul
+        mul *= 128
+        idx += 1
+        if (encoded & 0x80) == 0:
+            break
+    used = idx - start + 0  # number of bytes read for remaining length
+    return val, (idx - start + 1) - 1  # return value and approximate bytes (compat)
+
+def _parse_mqtt_connect_flags(payload_bytes):
+    """
+    Best-effort parse to reach the Connect Flags byte inside an MQTT CONNECT packet.
+    Returns tuple (has_username_flag, has_password_flag)
+    If parsing fails, returns (False, False)
+    """
+    try:
+        b = payload_bytes
+        if len(b) < 6:
+            return False, False
+
+        # Fixed header: byte0 = control + flags, then Remaining Length (var int)
+        # get remaining length
+        # naive parse: read second byte as remaining length if <128
+        # robust parse using varint loop
+        # we will attempt varint parse
+        # find index where variable header begins
+        idx = 1
+        mul = 1
+        rem_len = 0
+        while idx < len(b):
+            enc = b[idx]
+            rem_len += (enc & 0x7F) * mul
+            mul *= 128
+            if (enc & 0x80) == 0:
+                idx += 1
+                break
+            idx += 1
+
+        # idx now points to start of variable header (Protocol Name)
+        # Protocol Name length (2 bytes)
+        if idx + 2 > len(b):
+            return False, False
+        proto_name_len = (b[idx] << 8) + b[idx+1]
+        idx += 2
+        idx += proto_name_len  # skip protocol name
+        if idx + 1 >= len(b):
+            return False, False
+        # protocol level (1 byte)
+        idx += 1
+        # connect flags byte
+        if idx >= len(b):
+            return False, False
+        flags = b[idx]
+        has_username = bool(flags & 0x80)
+        has_password = bool(flags & 0x40)
+        return has_username, has_password
+    except Exception:
+        return False, False
+
+def _mqtt_control_type_from_first_byte(b):
+    if not b or len(b) < 1:
+        return 0
+    first = b[0]
+    ctl = (first >> 4) & 0x0F
+    # map to traditional packet type numbers (CONNECT=1, CONNACK=2, PUBLISH=3 ...)
+    return ctl
+
+# -----------------------------------------------------------------------------------------
 
 def extract_biflow_29(pcap_path):
     """
@@ -102,7 +171,8 @@ def extract_biflow_29(pcap_path):
             flows[k] = {
                 "times": [], "sizes": [], "psh":0, "rst":0, "urg":0,
                 "src": str(ip.src), "dst": str(ip.dst), "sport": sport, "dport": dport, "proto": proto,
-                "ports_set": set(), "mqtt_connects":0, "mqtt_msgs":0, "ssh_syn":0, "ssh_pkts":0
+                "ports_set": set(), "mqtt_connects":0, "mqtt_connacks":0, "mqtt_msgs":0,
+                "ssh_syn":0, "ssh_pkts":0
             }
 
         f = flows[k]
@@ -116,18 +186,41 @@ def extract_biflow_29(pcap_path):
             if flags & 0x02: f["ssh_syn"] += 1
             if sport == 22 or dport == 22: f["ssh_pkts"] += 1
 
-        if _MQTT_OK:
-            try:
-                if p.haslayer(MQTT):
-                    m = p[MQTT]
-                    mtype = getattr(m,"type",None) or getattr(m,"msgtype",None)
-                    f["mqtt_msgs"] += 1
-                    if mtype is not None and int(mtype) == 1:
+        # MQTT detection: prefer scapy MQTT layer, otherwise parse Raw payload
+        try:
+            if _MQTT_OK and p.haslayer(MQTT):
+                m = p[MQTT]
+                # scapy MQTT layer provides 'type' (1=CONNECT, 2=CONNACK, 3=PUBLISH etc.)
+                mtype = getattr(m,"type",None) or getattr(m,"msgtype",None)
+                if mtype is not None:
+                    if int(mtype) == 1:
                         f["mqtt_connects"] += 1
-            except Exception:
-                pass
+                    elif int(mtype) == 2:
+                        f["mqtt_connacks"] += 1
+                    else:
+                        f["mqtt_msgs"] += 1
+            else:
+                # Fallback parsing from Raw TCP payload bytes
+                if p.haslayer(Raw):
+                    raw = bytes(p[Raw].load)
+                    ctl = _mqtt_control_type_from_first_byte(raw)
+                    if ctl == 1:  # CONNECT
+                        f["mqtt_connects"] += 1
+                    elif ctl == 2:  # CONNACK
+                        f["mqtt_connacks"] += 1
+                    elif ctl in (3,4,8):  # PUBLISH / PUBACK / SUBSCRIBE etc.
+                        f["mqtt_msgs"] += 1
 
-    # Now pair flows into biflows (fwd/bwd)
+                    # also attempt to detect username/password flags in CONNECT
+                    if ctl == 1:
+                        has_u, has_p = _parse_mqtt_connect_flags(raw)
+                        # we don't store username length; but increment mqtt_msgs if username present
+                        if has_u:
+                            f["mqtt_msgs"] += 0  # keep counter semantics; heuristics use connects/connacks primarily
+        except Exception:
+            pass
+
+    # pair flows into biflows (fwd/bwd)
     processed = set()
     biflow_feats = []
     biflow_meta = []
@@ -161,10 +254,11 @@ def extract_biflow_29(pcap_path):
             b_psh = int(b["psh"]); b_rst = int(b["rst"]); b_urg = int(b["urg"])
             f_ports_set = set(f["ports_set"])
             b_ports_set = set(b["ports_set"])
-            f_mqtt_connects = int(f["mqtt_connects"]); b_mqtt_connects = int(b["mqtt_connects"])
-            f_mqtt_msgs = int(f["mqtt_msgs"]); b_mqtt_msgs = int(b["mqtt_msgs"])
-            f_ssh_syn = int(f["ssh_syn"]); b_ssh_syn = int(b["ssh_syn"])
-            f_ssh_pkts = int(f["ssh_pkts"]); b_ssh_pkts = int(b["ssh_pkts"])
+            f_mqtt_connects = int(f.get("mqtt_connects",0)); b_mqtt_connects = int(b.get("mqtt_connects",0))
+            f_mqtt_connacks = int(f.get("mqtt_connacks",0)); b_mqtt_connacks = int(b.get("mqtt_connacks",0))
+            f_mqtt_msgs = int(f.get("mqtt_msgs",0)); b_mqtt_msgs = int(b.get("mqtt_msgs",0))
+            f_ssh_syn = int(f.get("ssh_syn",0)); b_ssh_syn = int(b.get("ssh_syn",0))
+            f_ssh_pkts = int(f.get("ssh_pkts",0)); b_ssh_pkts = int(b.get("ssh_pkts",0))
         else:
             b_mean_iat, b_std_iat, b_min_iat, b_max_iat = f_mean_iat, f_std_iat, f_min_iat, f_max_iat
             b_mean_len, b_std_len, b_min_len, b_max_len = f_mean_len, f_std_len, f_min_len, f_max_len
@@ -173,22 +267,20 @@ def extract_biflow_29(pcap_path):
             b_psh, b_rst, b_urg = f_psh, f_rst, f_urg
             f_ports_set = set(f["ports_set"])
             b_ports_set = set()
-            f_mqtt_connects = int(f["mqtt_connects"]); b_mqtt_connects = 0
-            f_mqtt_msgs = int(f["mqtt_msgs"]); b_mqtt_msgs = 0
-            f_ssh_syn = int(f["ssh_syn"]); b_ssh_syn = 0
-            f_ssh_pkts = int(f["ssh_pkts"]); b_ssh_pkts = 0
+            f_mqtt_connects = int(f.get("mqtt_connects",0)); b_mqtt_connects = 0
+            f_mqtt_connacks = int(f.get("mqtt_connacks",0)); b_mqtt_connacks = 0
+            f_mqtt_msgs = int(f.get("mqtt_msgs",0)); b_mqtt_msgs = 0
+            f_ssh_syn = int(f.get("ssh_syn",0)); b_ssh_syn = 0
+            f_ssh_pkts = int(f.get("ssh_pkts",0)); b_ssh_pkts = 0
 
         feat = {
-            # header fields
             "prt_src": int(sport),
             "prt_dst": int(dport),
             "proto": int(proto),
 
-            # counts
             "fwd_num_pkts": f_num_pkts,
             "bwd_num_pkts": b_num_pkts,
 
-            # iat
             "fwd_mean_iat": float(f_mean_iat),
             "bwd_mean_iat": float(b_mean_iat),
             "fwd_std_iat": float(f_std_iat),
@@ -198,7 +290,6 @@ def extract_biflow_29(pcap_path):
             "fwd_max_iat": float(f_max_iat),
             "bwd_max_iat": float(b_max_iat),
 
-            # pkt lengths stats
             "fwd_mean_pkt_len": float(f_mean_len),
             "bwd_mean_pkt_len": float(b_mean_len),
             "fwd_std_pkt_len": float(f_std_len),
@@ -208,11 +299,9 @@ def extract_biflow_29(pcap_path):
             "fwd_max_pkt_len": float(f_max_len),
             "bwd_max_pkt_len": float(b_max_len),
 
-            # bytes
             "fwd_num_bytes": int(f_num_bytes),
             "bwd_num_bytes": int(b_num_bytes),
 
-            # flags
             "fwd_num_psh_flags": int(f_psh),
             "bwd_num_psh_flags": int(b_psh),
             "fwd_num_rst_flags": int(f_rst),
@@ -220,7 +309,6 @@ def extract_biflow_29(pcap_path):
             "fwd_num_urg_flags": int(f_urg),
             "bwd_num_urg_flags": int(b_urg),
 
-            # placeholder attack flag (models expect this column)
             "is_attack": 0
         }
 
@@ -234,6 +322,8 @@ def extract_biflow_29(pcap_path):
             "b_ports_set": b_ports_set,
             "f_mqtt_connects": f_mqtt_connects,
             "b_mqtt_connects": b_mqtt_connects,
+            "f_mqtt_connacks": f_mqtt_connacks,
+            "b_mqtt_connacks": b_mqtt_connacks,
             "f_mqtt_msgs": f_mqtt_msgs,
             "b_mqtt_msgs": b_mqtt_msgs,
             "f_ssh_syn": f_ssh_syn,
@@ -242,7 +332,6 @@ def extract_biflow_29(pcap_path):
             "b_ssh_pkts": b_ssh_pkts
         }
 
-        # append and mark processed
         biflow_feats.append(feat)
         biflow_meta.append(meta)
         processed.add(k)
@@ -255,14 +344,7 @@ def safe_compute_iat_stats(times_sorted):
     if not times_sorted or len(times_sorted) < 2:
         return 0.0, 0.0, 0.0, 0.0
     iats = np.diff(np.array(times_sorted, dtype=float))
-    return (
-        float(iats.mean()),
-        float(iats.std(ddof=0)),
-        float(iats.min()),
-        float(iats.max()),
-    )
-
-
+    return (float(iats.mean()), float(iats.std(ddof=0)), float(iats.min()), float(iats.max()))
 
 def biflow_to_uniflow_rows(biflow_rows, biflow_meta, uniflow_feature_names):
     """
@@ -348,14 +430,11 @@ def extract_packet_level(pcap_path, packet_feature_names, broker_ip=None, broker
         else:
             continue
 
-        # Base fields we can compute
         pkt_len = len(p)
         ttl = getattr(ip, "ttl", 0)
         ip_len = getattr(ip, "len", pkt_len)
 
         # TCP flags expanded
-        tcp_flag_res = 0
-        tcp_flag_ns = 0
         tcp_flag_cwr = 1 if (hasattr(p, 'TCP') and (int(p[TCP].flags) & 0x80)) else 0
         tcp_flag_ecn = 1 if (hasattr(p, 'TCP') and (int(p[TCP].flags) & 0x40)) else 0
         tcp_flag_urg = 1 if (hasattr(p, 'TCP') and (int(p[TCP].flags) & 0x20)) else 0
@@ -370,11 +449,6 @@ def extract_packet_level(pcap_path, packet_feature_names, broker_ip=None, broker
         mqtt_messagelength = 0
         mqtt_flag_uname = 0
         mqtt_flag_passwd = 0
-        mqtt_flag_retain = 0
-        mqtt_flag_qos = 0
-        mqtt_flag_willflag = 0
-        mqtt_flag_clean = 0
-        mqtt_flag_reserved = 0
 
         if _MQTT_OK:
             try:
@@ -382,35 +456,38 @@ def extract_packet_level(pcap_path, packet_feature_names, broker_ip=None, broker
                     m = p[MQTT]
                     mqtt_messagelength = getattr(m,"length",0) or 0
                     mqtt_messagetype = getattr(m,"type",None) or getattr(m,"msgtype",0)
-                    # best-effort flags from attributes if present
                     mqtt_flag_uname = int(getattr(m,"username",False) is not False)
                     mqtt_flag_passwd = int(getattr(m,"password",False) is not False)
-                    # other flags may not be available via scapy layer; keep as 0 by default
             except Exception:
                 pass
+        else:
+            # raw fallback: inspect Raw payload
+            if p.haslayer(Raw):
+                raw = bytes(p[Raw].load)
+                ctl = _mqtt_control_type_from_first_byte(raw)
+                if ctl == 1:
+                    mqtt_messagetype = 1
+                    mqtt_messagelength = len(raw)
+                    has_u, has_p = _parse_mqtt_connect_flags(raw)
+                    mqtt_flag_uname = int(has_u)
+                    mqtt_flag_passwd = int(has_p)
+                elif ctl == 2:
+                    mqtt_messagetype = 2
+                    mqtt_messagelength = len(raw)
+                elif ctl in (3,4,8):
+                    mqtt_messagetype = ctl
+                    mqtt_messagelength = len(raw)
 
-        # assemble row using requested feature names
         row = {}
         for fn in packet_feature_names:
-            # map expected names to computed values
             if fn == "ttl":
                 row[fn] = ttl
             elif fn == "ip_len":
                 row[fn] = ip_len
-            elif fn == "ip_flag_df":
-                row[fn] = 0
-            elif fn == "ip_flag_mf":
-                row[fn] = 0
-            elif fn == "ip_flag_rb":
-                row[fn] = 0
             elif fn == "src_port":
                 row[fn] = sport
             elif fn == "dst_port":
                 row[fn] = dport
-            elif fn == "tcp_flag_res":
-                row[fn] = tcp_flag_res
-            elif fn == "tcp_flag_ns":
-                row[fn] = tcp_flag_ns
             elif fn == "tcp_flag_cwr":
                 row[fn] = tcp_flag_cwr
             elif fn == "tcp_flag_ecn":
@@ -435,20 +512,9 @@ def extract_packet_level(pcap_path, packet_feature_names, broker_ip=None, broker
                 row[fn] = mqtt_flag_uname
             elif fn == "mqtt_flag_passwd":
                 row[fn] = mqtt_flag_passwd
-            elif fn == "mqtt_flag_retain":
-                row[fn] = mqtt_flag_retain
-            elif fn == "mqtt_flag_qos":
-                row[fn] = mqtt_flag_qos
-            elif fn == "mqtt_flag_willflag":
-                row[fn] = mqtt_flag_willflag
-            elif fn == "mqtt_flag_clean":
-                row[fn] = mqtt_flag_clean
-            elif fn == "mqtt_flag_reserved":
-                row[fn] = mqtt_flag_reserved
             elif fn == "is_attack":
                 row[fn] = 0
             else:
-                # unknown expected feature — default to zero
                 row[fn] = 0
         rows.append(row)
         metas.append({"src": str(ip.src), "dst": str(ip.dst), "sport": sport, "dport": dport, "proto": proto})

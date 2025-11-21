@@ -41,12 +41,12 @@ if (!(Test-Path $Subscriber)) {
 
 # ---------------------- Start Publisher ----------------------
 Write-Host "`n[1] Starting MQTT Publisher..." -ForegroundColor Green
-Start-Process "powershell.exe" -ArgumentList "-NoExit", "-ExecutionPolicy Bypass", "`"$Publisher`""
+Start-Process powershell.exe -ArgumentList "-NoExit", "-ExecutionPolicy Bypass", "-File `"$Publisher`""
 Start-Sleep -Milliseconds 500
 
 # ---------------------- Start Subscriber ---------------------
 Write-Host "`n[2] Starting MQTT Subscriber..." -ForegroundColor Green
-Start-Process "powershell.exe" -ArgumentList "-NoExit", "-ExecutionPolicy Bypass", "`"$Subscriber`""
+Start-Process powershell.exe -ArgumentList "-NoExit", "-ExecutionPolicy Bypass", "-File `"$Subscriber`""
 Start-Sleep -Milliseconds 500
 
 # ---------------------- Info Message -------------------------

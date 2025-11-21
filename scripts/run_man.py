@@ -91,7 +91,9 @@ def main():
             [
                 sys.executable, str(AUGMENT_SCRIPT),
                 "--feature-level", mode,
-                "--data-dir", str(COMBINED_DIR)
+                "--data-dir", str(COMBINED_DIR),
+                "--balance", "oversample"
+
             ],
             f"Step 2 — Augment Dataset ({mode})"
         )

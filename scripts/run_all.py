@@ -20,7 +20,7 @@ AUGMENT_SCRIPT = SCRIPTS_DIR / "augment_dataset.py"
 TRAIN_SCRIPT   = SCRIPTS_DIR / "train_model.py"
 EVAL_SCRIPT    = SCRIPTS_DIR / "evaluate_model.py"
 
-FEATURE_LEVELS = ["uniflow", "biflow", "packet"]
+FEATURE_LEVELS = [ "packet","uniflow", "biflow"]
 SEED = 42
 TEST_SPLIT = 0.25
 CV_FOLDS = 5
@@ -93,6 +93,7 @@ def main():
                 sys.executable, str(AUGMENT_SCRIPT),
                 "--feature-level", feature,
                 "--data-dir", str(COMBINED_DIR),
+                "--balance", "oversample"
             ],
             f"Step 2 — Augment Dataset ({feature})"
         )
